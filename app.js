@@ -32,6 +32,9 @@
   const waveformDial = $('waveformDial');
   const frequencyInput = $('frequencyInput');
   const frequencyReadout = $('frequencyReadout');
+  const frequencyTrackBg = $('frequencyTrackBg');
+  const frequencyTrackActive = $('frequencyTrackActive');
+  const frequencyMarkerDot = $('frequencyMarkerDot');
   const scopeCanvas = $('oscilloscope');
   const scopeCtx = scopeCanvas.getContext('2d');
   const waveCanvas = $('wavePreview');
@@ -129,18 +132,32 @@
     return 0;
   }
 
+  const FREQUENCY_ARC_RADIUS = 216;
+  const FREQUENCY_ARC_CENTER = 250;
+  function frequencyArcPoint(angle, radius = FREQUENCY_ARC_RADIUS) {
+    const radians = angle * Math.PI / 180;
+    return {
+      x: FREQUENCY_ARC_CENTER + Math.sin(radians) * radius,
+      y: FREQUENCY_ARC_CENTER - Math.cos(radians) * radius
+    };
+  }
+  function frequencyArcPath(startAngle, endAngle, radius = FREQUENCY_ARC_RADIUS) {
+    const start = frequencyArcPoint(startAngle, radius);
+    const end = frequencyArcPoint(endAngle, radius);
+    const sweep = Math.max(0, endAngle - startAngle);
+    const largeArc = sweep > 180 ? 1 : 0;
+    return `M ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)}`;
+  }
   function positionFrequencyMarks() {
-    const radiusPercent = 43.2;
     document.querySelectorAll('.freq-mark[data-frequency]').forEach((button) => {
       const frequency = Number(button.dataset.frequency);
       const stop = FREQUENCY_STOPS.find((item) => item.frequency === frequency);
       if (!stop) return;
-      const radians = stop.angle * Math.PI / 180;
-      const x = 50 + Math.sin(radians) * radiusPercent;
-      const y = 50 - Math.cos(radians) * radiusPercent;
-      button.style.left = `${x}%`;
-      button.style.top = `${y}%`;
+      const point = frequencyArcPoint(stop.angle);
+      button.style.left = `${(point.x / 5).toFixed(3)}%`;
+      button.style.top = `${(point.y / 5).toFixed(3)}%`;
     });
+    frequencyTrackBg.setAttribute('d', frequencyArcPath(FREQUENCY_DIAL_START, FREQUENCY_DIAL_END));
   }
 
   function shortestHueMix(a, b, t) {
@@ -217,9 +234,10 @@
   function updateFrequencyUI() {
     const actual = effectiveFrequency();
     const angle = frequencyToAngle(actual);
-    const progress = clamp(angle - FREQUENCY_DIAL_START, 0, FREQUENCY_DIAL_END - FREQUENCY_DIAL_START);
-    frequencyDial.style.setProperty('--frequency-angle', `${angle}deg`);
-    frequencyDial.style.setProperty('--frequency-progress', `${progress}deg`);
+    frequencyTrackActive.setAttribute('d', frequencyArcPath(FREQUENCY_DIAL_START, angle));
+    const markerPoint = frequencyArcPoint(angle);
+    frequencyMarkerDot.setAttribute('cx', markerPoint.x.toFixed(3));
+    frequencyMarkerDot.setAttribute('cy', markerPoint.y.toFixed(3));
     frequencyDial.setAttribute('aria-valuenow', actual.toFixed(3));
     if (document.activeElement !== frequencyInput) frequencyInput.value = String(Number(actual.toFixed(3)));
     $('effectiveFrequency').textContent = formatHz(actual);

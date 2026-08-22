@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#07090d" />
   <title>Oscillostudio — générateur de fréquences</title>
-  <link rel="stylesheet" href="styles.css?v=7.4" />
+  <link rel="stylesheet" href="styles.css?v=7.5" />
 </head>
 <body>
   <main class="app-shell">
@@ -16,6 +16,7 @@
         <p class="subtitle">Deux cadrans indépendants : fréquence et forme d’onde. Aucun geste ne modifie les deux à la fois.</p>
       </div>
       <div class="status-cluster">
+        <span class="status-pill build-pill" aria-label="Version">v7.5</span>
         <span id="audioStatus" class="status-pill status-off">Audio arrêté</span>
         <span id="sampleRateStatus" class="status-pill">Sample rate : —</span>
       </div>
@@ -31,8 +32,17 @@
 
         <div id="frequencyDial" class="dial frequency-dial" role="slider" tabindex="0" aria-label="Fréquence" aria-valuemin="0" aria-valuemax="25000" aria-valuenow="440">
           <div class="dial-metal" aria-hidden="true"></div>
-          <div class="frequency-track" aria-hidden="true"></div>
-          <div id="frequencyMarker" class="frequency-marker" aria-hidden="true"></div>
+          <svg class="frequency-scale-svg" viewBox="0 0 500 500" aria-hidden="true">
+            <defs>
+              <filter id="frequencyGlow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <path id="frequencyTrackBg" class="frequency-arc-bg" d="" />
+            <path id="frequencyTrackActive" class="frequency-arc-active" d="" filter="url(#frequencyGlow)" />
+            <circle id="frequencyMarkerDot" class="frequency-marker-dot" cx="0" cy="0" r="7" filter="url(#frequencyGlow)" />
+          </svg>
 
           <button class="freq-mark" type="button" data-frequency="0">0</button>
           <button class="freq-mark" type="button" data-frequency="10">10</button>
@@ -181,7 +191,7 @@
     </section>
   </main>
 
-  <script src="audio-engine.js?v=7.4"></script>
-  <script src="app.js?v=7.4"></script>
+  <script src="audio-engine.js?v=7.5"></script>
+  <script src="app.js?v=7.5"></script>
 </body>
 </html>
