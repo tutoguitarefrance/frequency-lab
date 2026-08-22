@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#090c11" />
-  <title>Frequency Lab — générateur de fréquences</title>
+  <meta name="theme-color" content="#07090d" />
+  <title>Oscillostudio — générateur de fréquences</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="app-shell">
     <header class="app-header">
       <div>
-        <p class="eyebrow">Oscillostudio • module de test audio</p>
-        <h1>Frequency Lab</h1>
-        <p class="subtitle">Générateur 0–25 000 Hz • fréquence, forme d’onde et richesse harmonique.</p>
+        <p class="eyebrow">Module audio autonome • futur module Tinnitune</p>
+        <h1>Oscillostudio</h1>
+        <p class="subtitle">Deux cadrans indépendants : fréquence et forme d’onde. Aucun geste ne modifie les deux à la fois.</p>
       </div>
       <div class="status-cluster">
         <span id="audioStatus" class="status-pill status-off">Audio arrêté</span>
@@ -21,82 +21,113 @@
       </div>
     </header>
 
-    <section class="synth-panel card">
-      <div class="richness richness-over" aria-label="Richesse des sur-harmoniques">
-        <div class="richness-copy">
-          <span class="richness-title">SUR</span>
-          <strong><span id="overRichnessValue">0</span>%</strong>
-          <span class="richness-subtitle">harmoniques</span>
+    <section class="dual-dials card" aria-label="Commandes principales">
+      <article class="dial-module frequency-module">
+        <div class="module-heading">
+          <span class="module-kicker">CADRAN 1</span>
+          <h2>Fréquence</h2>
+          <p>Tourner le cadran. Sur mobile, le mouvement est relatif pour éviter les sauts.</p>
         </div>
-        <div class="vertical-slider vertical-slider-up">
-          <span class="richness-limit">+</span>
-          <input id="overRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse sur-harmoniques" />
-          <span class="richness-zero">0</span>
-        </div>
-      </div>
 
-      <div class="dial-column">
-        <div id="waveformRing" class="waveform-ring" data-waveform="sine" role="slider" tabindex="0" aria-label="Morphing continu de la forme d’onde" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0" aria-valuetext="Sinusoïde 100 %">
-          <div class="metal-ring" aria-hidden="true"></div>
-          <div class="wave-color-track" aria-hidden="true"></div>
-          <div id="waveMorphHalo" class="wave-morph-halo" aria-hidden="true"></div>
-          <div id="waveMorphMarker" class="wave-morph-marker" aria-hidden="true"></div>
+        <div id="frequencyDial" class="dial frequency-dial" role="slider" tabindex="0" aria-label="Fréquence" aria-valuemin="0" aria-valuemax="25000" aria-valuenow="440">
+          <div class="dial-metal" aria-hidden="true"></div>
+          <div class="frequency-track" aria-hidden="true"></div>
+          <div id="frequencyMarker" class="frequency-marker" aria-hidden="true"></div>
 
-          <div class="wave-choice wave-sine is-selected" data-wave="sine" aria-hidden="true">
-            <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 13 C10 1, 18 1, 26 13 S42 25, 50 13 S58 1, 62 13"/></svg>
-          </div>
-          <div class="wave-choice wave-triangle" data-wave="triangle" aria-hidden="true">
-            <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 22 L17 4 L32 22 L47 4 L62 22"/></svg>
-          </div>
-          <div class="wave-choice wave-square" data-wave="square" aria-hidden="true">
-            <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 21 L2 5 L17 5 L17 21 L32 21 L32 5 L47 5 L47 21 L62 21"/></svg>
-          </div>
-          <div class="wave-choice wave-sawtooth" data-wave="sawtooth" aria-hidden="true">
-            <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 22 L17 4 L17 22 L32 4 L32 22 L47 4 L47 22 L62 4"/></svg>
-          </div>
+          <button class="freq-mark freq-mark-20" type="button" data-frequency="20">20</button>
+          <button class="freq-mark freq-mark-100" type="button" data-frequency="100">100</button>
+          <button class="freq-mark freq-mark-440" type="button" data-frequency="440">440</button>
+          <button class="freq-mark freq-mark-1k" type="button" data-frequency="1000">1k</button>
+          <button class="freq-mark freq-mark-5k" type="button" data-frequency="5000">5k</button>
+          <button class="freq-mark freq-mark-10k" type="button" data-frequency="10000">10k</button>
+          <button class="freq-mark freq-mark-20k" type="button" data-frequency="20000">20k</button>
+          <button class="freq-mark freq-mark-25k" type="button" data-frequency="25000">25k</button>
 
-          <div id="frequencyKnob" class="frequency-knob" role="slider" tabindex="0" aria-label="Fréquence" aria-valuemin="0" aria-valuemax="25000" aria-valuenow="440">
-            <div class="knob-face">
-              <div id="dialMarker" class="dial-marker" aria-hidden="true"></div>
-              <canvas id="oscilloscope" width="520" height="520" aria-label="Oscilloscope"></canvas>
-              <div class="scope-grid" aria-hidden="true"></div>
-              <div class="knob-readout">
-                <span id="scopeState" class="scope-state">FRÉQUENCE</span>
-                <div id="frequencyReadout" class="frequency-edit-row" aria-label="Valeur de fréquence. Maintenir pour saisir manuellement sur mobile.">
-                  <input id="frequencyInput" type="number" min="0" max="25000" step="0.001" value="440" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Fréquence en hertz" />
-                  <span>Hz</span>
-                </div>
-                <span id="manualFrequencyHint" class="manual-frequency-hint">Maintenir la fréquence pour saisir</span>
-                <span id="noteHint" class="note-hint">A4 • 0 cent</span>
+          <div class="dial-center frequency-screen">
+            <canvas id="oscilloscope" width="520" height="520" aria-label="Oscilloscope du signal audio"></canvas>
+            <div class="scope-grid" aria-hidden="true"></div>
+            <div class="frequency-overlay">
+              <span id="frequencyModeLabel" class="screen-label">FRÉQUENCE</span>
+              <div id="frequencyReadout" class="frequency-readout" aria-label="Maintenir pour saisir une fréquence exacte">
+                <input id="frequencyInput" type="number" min="0" max="25000" step="0.001" value="440" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Fréquence en hertz" />
+                <span class="hz-unit">Hz</span>
               </div>
+              <span id="manualFrequencyHint" class="manual-hint">Maintenir la valeur pour ouvrir le clavier</span>
+              <span id="noteHint" class="note-hint">A4 • 0 cent</span>
             </div>
           </div>
         </div>
+      </article>
 
-        <div class="wave-labels" aria-live="polite">
-          <span>FORME D’ONDE • MOLETTE CONTINUE — GLISSER SUR LA COURONNE</span>
-          <strong id="waveformLabel">SINUSOÏDE</strong>
+      <article class="dial-module waveform-module">
+        <div class="module-heading">
+          <span class="module-kicker">CADRAN 2</span>
+          <h2>Forme d’onde</h2>
+          <p>Choisir une forme, puis glisser sur la couronne pour la faire évoluer progressivement.</p>
         </div>
 
-        <div class="transport-row">
-          <button id="toggleTone" class="play-button" type="button" aria-pressed="false">
-            <span class="play-symbol">▶</span>
-            <span id="toneButtonLabel">PLAY</span>
+        <div id="waveformDial" class="dial waveform-dial" role="slider" tabindex="0" aria-label="Morphing continu de la forme d’onde" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0" aria-valuetext="Sinusoïde 100 %">
+          <div class="dial-metal" aria-hidden="true"></div>
+          <div class="wave-map" aria-hidden="true"></div>
+          <div id="waveBlendZone" class="wave-blend-zone" aria-hidden="true"></div>
+          <div id="waveBlendCore" class="wave-blend-core" aria-hidden="true"></div>
+
+          <button class="wave-anchor wave-sine" type="button" data-wave-index="0" aria-label="Sinusoïde">
+            <svg viewBox="0 0 70 30" aria-hidden="true"><path d="M2 15 C11 2, 20 2, 29 15 S47 28, 56 15 S65 2, 68 15"/></svg>
           </button>
+          <button class="wave-anchor wave-triangle" type="button" data-wave-index="1" aria-label="Triangle">
+            <svg viewBox="0 0 70 30" aria-hidden="true"><path d="M2 25 L18 5 L35 25 L52 5 L68 25"/></svg>
+          </button>
+          <button class="wave-anchor wave-square" type="button" data-wave-index="2" aria-label="Carrée">
+            <svg viewBox="0 0 70 30" aria-hidden="true"><path d="M2 24 L2 6 L18 6 L18 24 L35 24 L35 6 L52 6 L52 24 L68 24"/></svg>
+          </button>
+          <button class="wave-anchor wave-saw" type="button" data-wave-index="3" aria-label="Dent de scie">
+            <svg viewBox="0 0 70 30" aria-hidden="true"><path d="M2 25 L18 5 L18 25 L35 5 L35 25 L52 5 L52 25 L68 5"/></svg>
+          </button>
+
+          <div class="dial-center waveform-screen">
+            <canvas id="wavePreview" width="520" height="280" aria-label="Prévisualisation de la forme d’onde"></canvas>
+            <div class="wave-readout">
+              <span class="screen-label">MORPHING</span>
+              <strong id="waveformLabel">SINUSOÏDE 100 %</strong>
+              <span id="waveInstruction" class="wave-instruction">Les 4 formes restent visibles • la zone colorée montre la transition</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="performance card">
+      <div class="harmonic-controls">
+        <div class="harmonic-slider over-control">
+          <div class="harmonic-copy">
+            <strong>SUR ↑</strong>
+            <span><b id="overRichnessValue">0</b>%</span>
+            <small>sur-harmoniques</small>
+          </div>
+          <div class="vertical-control vertical-up">
+            <span>+</span>
+            <input id="overRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse des sur-harmoniques" />
+            <span>0</span>
+          </div>
+        </div>
+
+        <div class="transport-stack">
+          <button id="toggleTone" class="play-button" type="button" aria-pressed="false"><span class="play-symbol">▶</span><span id="toneButtonLabel">PLAY</span></button>
           <button id="panicStop" class="stop-button" type="button">STOP</button>
         </div>
-      </div>
 
-      <div class="richness richness-sub" aria-label="Richesse des subharmoniques">
-        <div class="vertical-slider vertical-slider-down">
-          <span class="richness-zero">0</span>
-          <input id="subRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse subharmoniques" />
-          <span class="richness-limit">+</span>
-        </div>
-        <div class="richness-copy">
-          <span class="richness-title">SUB</span>
-          <strong><span id="subRichnessValue">0</span>%</strong>
-          <span class="richness-subtitle">harmoniques</span>
+        <div class="harmonic-slider sub-control">
+          <div class="vertical-control vertical-down">
+            <span>0</span>
+            <input id="subRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse des subharmoniques" />
+            <span>+</span>
+          </div>
+          <div class="harmonic-copy">
+            <strong>SUB ↓</strong>
+            <span><b id="subRichnessValue">0</b>%</span>
+            <small>subharmoniques</small>
+          </div>
         </div>
       </div>
     </section>
@@ -109,51 +140,42 @@
       </label>
 
       <div class="fine-control">
-        <div class="control-label-row">
-          <label for="centsSlider">Réglage fin Oscillostudio</label>
-          <output id="centsOutput">0 cent</output>
-        </div>
+        <div class="control-label-row"><label for="centsSlider">Réglage fin Oscillostudio</label><output id="centsOutput">0 cent</output></div>
         <input id="centsSlider" class="range" type="range" min="-100" max="100" step="1" value="0" />
         <div class="range-scale"><span>−100</span><span>0</span><span>+100</span></div>
       </div>
 
       <div class="volume-control">
-        <div class="control-label-row">
-          <label for="masterVolume">Volume</label>
-          <output id="masterVolumeValue">25 %</output>
-        </div>
+        <div class="control-label-row"><label for="masterVolume">Volume</label><output id="masterVolumeValue">25 %</output></div>
         <input id="masterVolume" class="range" type="range" min="0" max="100" step="1" value="25" />
       </div>
     </section>
 
     <section class="presets card">
       <div class="section-title-row">
-        <div>
-          <p class="eyebrow">Accès rapide</p>
-          <h2>Fréquences test</h2>
-        </div>
-        <div class="effective-readout"><span>Signal</span><strong><span id="effectiveFrequency">440.000</span> Hz</strong></div>
+        <div><p class="eyebrow">Accès rapide</p><h2>Fréquences test</h2></div>
+        <div class="effective-readout"><span>Signal réel</span><strong><span id="effectiveFrequency">440.000</span> Hz</strong></div>
       </div>
       <div class="preset-row" aria-label="Fréquences prédéfinies">
-        <button class="chip" data-frequency="20">20</button>
-        <button class="chip" data-frequency="55">55</button>
-        <button class="chip" data-frequency="110">110</button>
-        <button class="chip" data-frequency="220">220</button>
-        <button class="chip" data-frequency="440">440</button>
-        <button class="chip" data-frequency="880">880</button>
-        <button class="chip" data-frequency="1000">1 k</button>
-        <button class="chip" data-frequency="10000">10 k</button>
-        <button class="chip" data-frequency="20000">20 k</button>
-        <button class="chip" data-frequency="25000">25 k</button>
+        <button class="chip" type="button" data-frequency="20">20</button>
+        <button class="chip" type="button" data-frequency="55">55</button>
+        <button class="chip" type="button" data-frequency="110">110</button>
+        <button class="chip" type="button" data-frequency="220">220</button>
+        <button class="chip" type="button" data-frequency="440">440</button>
+        <button class="chip" type="button" data-frequency="880">880</button>
+        <button class="chip" type="button" data-frequency="1000">1 k</button>
+        <button class="chip" type="button" data-frequency="10000">10 k</button>
+        <button class="chip" type="button" data-frequency="20000">20 k</button>
+        <button class="chip" type="button" data-frequency="25000">25 k</button>
       </div>
     </section>
 
-    <section class="diagnostics-card card">
-      <div class="diag-item"><span>Sample rate</span><strong id="sampleRateValue">—</strong></div>
-      <div class="diag-item"><span>Nyquist</span><strong id="nyquistValue">—</strong></div>
-      <div class="diag-item"><span>Sur-harmoniques</span><strong id="overCount">0</strong></div>
-      <div class="diag-item"><span>Subharmoniques</span><strong id="subCount">0</strong></div>
-      <p id="nyquistWarning" class="diag-note">Le module demandera 96 kHz si le navigateur l’accepte.</p>
+    <section class="diagnostics card">
+      <div><span>Sample rate</span><strong id="sampleRateValue">—</strong></div>
+      <div><span>Nyquist</span><strong id="nyquistValue">—</strong></div>
+      <div><span>Sur-harmoniques</span><strong id="overCount">0</strong></div>
+      <div><span>Subharmoniques</span><strong id="subCount">0</strong></div>
+      <p id="nyquistWarning">Le module demandera 96 kHz si le navigateur l’accepte.</p>
     </section>
   </main>
 
