@@ -12,6 +12,15 @@
     sawtooth: 'DENT DE SCIE'
   };
 
+  // Palette volontairement très saturée : chaque forme possède une identité
+  // visuelle permanente et le halo interpole sa teinte pendant le morphing.
+  const waveformColors = {
+    sine: { h: 186, s: 100, l: 58 },      // cyan
+    triangle: { h: 104, s: 100, l: 58 },  // vert acide
+    square: { h: 316, s: 100, l: 62 },    // magenta
+    sawtooth: { h: 34, s: 100, l: 58 }    // orange
+  };
+
   const state = {
     baseFrequency: 440,
     cents: 0,
@@ -92,6 +101,26 @@
     const normalized = clamp((angle + 135) / 270, 0, 1);
     if (normalized <= 0.002) return 0;
     return Math.pow(25001, normalized) - 1;
+  }
+
+
+  function shortestHueMix(a, b, t) {
+    let delta = ((b - a + 540) % 360) - 180;
+    return (a + delta * t + 360) % 360;
+  }
+
+  function hslString(color, alpha = 1) {
+    return `hsla(${color.h.toFixed(1)}, ${color.s}%, ${color.l}%, ${alpha})`;
+  }
+
+  function mixedWaveColor(aWave, bWave, t) {
+    const a = waveformColors[aWave];
+    const b = waveformColors[bWave];
+    return {
+      h: shortestHueMix(a.h, b.h, t),
+      s: a.s + (b.s - a.s) * t,
+      l: a.l + (b.l - a.l) * t
+    };
   }
 
   function morphMix(position) {
@@ -201,6 +230,15 @@
     state.waveformMix = data.mix;
     ring.style.setProperty('--wave-angle', `${data.wrapped * 90}deg`);
     ring.setAttribute('aria-valuenow', data.wrapped.toFixed(3));
+
+    const colorA = waveformColors[WAVEFORMS[data.index]];
+    const colorB = waveformColors[WAVEFORMS[data.next]];
+    const colorMix = mixedWaveColor(WAVEFORMS[data.index], WAVEFORMS[data.next], data.t);
+    ring.style.setProperty('--morph-color-a', hslString(colorA));
+    ring.style.setProperty('--morph-color-b', hslString(colorB));
+    ring.style.setProperty('--morph-color', hslString(colorMix));
+    ring.style.setProperty('--morph-color-soft', hslString(colorMix, 0.44));
+    ring.style.setProperty('--morph-color-faint', hslString(colorMix, 0.18));
 
     document.querySelectorAll('.wave-choice').forEach((marker) => {
       const weight = data.mix[marker.dataset.wave] || 0;

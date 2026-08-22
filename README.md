@@ -49,3 +49,12 @@ La couronne de forme d’onde est désormais une commande analogique continue. L
 - **Pression longue (~0,5 s) sur la fréquence centrale puis relâcher** : activation de la saisie et ouverture du clavier numérique mobile.
 - Après validation/fermeture du clavier, la valeur est appliquée et la zone redevient protégée contre les taps accidentels.
 - Les contrôles souris/clavier de bureau restent disponibles.
+
+
+## v6 — couronne chromatique intuitive
+
+- Les quatre formes d’onde restent visibles en permanence avec un code couleur néon fixe : sinus cyan, triangle vert, carrée magenta, dent de scie orange.
+- Un large halo flou suit la position du morphing sur la couronne.
+- La couleur du halo se transforme continuellement entre les deux formes voisines ; le changement est donc visible même sans lire les pourcentages.
+- Une carte chromatique discrète reste présente sur la couronne métallique pour indiquer le sens des quatre zones.
+- Le repère précis et le libellé sous le cadran reprennent la couleur courante du halo.

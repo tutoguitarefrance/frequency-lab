@@ -662,3 +662,192 @@ h2 { margin-bottom: 0; font-size: 1.08rem; }
   .frequency-edit-row input[readonly] { cursor: default; }
   .frequency-knob { cursor: default; }
 }
+
+
+/* v6 — repères néon permanents + halo de morphing très lisible */
+.waveform-ring {
+  --morph-color: hsla(186, 100%, 58%, 1);
+  --morph-color-a: hsla(186, 100%, 58%, 1);
+  --morph-color-b: hsla(104, 100%, 58%, 1);
+  --morph-color-soft: hsla(186, 100%, 58%, .44);
+  --morph-color-faint: hsla(186, 100%, 58%, .18);
+}
+
+/* Une très légère carte chromatique reste visible sur la couronne métallique.
+   Elle donne le sens de lecture sans transformer le cadran en arc-en-ciel. */
+.wave-color-track {
+  position: absolute;
+  z-index: 1;
+  inset: 2px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from -45deg,
+    rgba(0,245,255,.24) 0deg,
+    rgba(0,245,255,.24) 48deg,
+    rgba(141,255,0,.22) 90deg,
+    rgba(141,255,0,.22) 138deg,
+    rgba(255,43,214,.22) 180deg,
+    rgba(255,43,214,.22) 228deg,
+    rgba(255,157,0,.22) 270deg,
+    rgba(255,157,0,.22) 318deg,
+    rgba(0,245,255,.24) 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side,
+    transparent calc(100% - 60px),
+    #000 calc(100% - 54px),
+    #000 calc(100% - 9px),
+    transparent calc(100% - 3px));
+  mask: radial-gradient(farthest-side,
+    transparent calc(100% - 60px),
+    #000 calc(100% - 54px),
+    #000 calc(100% - 9px),
+    transparent calc(100% - 3px));
+  filter: blur(3px) saturate(1.3);
+  opacity: .78;
+}
+
+/* Large zone lumineuse qui suit le doigt. Le noyau donne une couleur franche,
+   tandis que la seconde couche étale largement le halo pour rester lisible
+   même sur un petit écran de téléphone. */
+.wave-morph-halo {
+  position: absolute;
+  z-index: 2;
+  inset: -7px;
+  border-radius: 50%;
+  transform: rotate(var(--wave-angle));
+  pointer-events: none;
+  transition: filter .08s linear;
+}
+
+.wave-morph-halo::before,
+.wave-morph-halo::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.wave-morph-halo::before {
+  top: -13px;
+  width: 158px;
+  height: 74px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at center,
+      var(--morph-color) 0%,
+      var(--morph-color-soft) 34%,
+      transparent 74%);
+  filter: blur(10px) saturate(1.65);
+  box-shadow:
+    0 0 24px var(--morph-color-soft),
+    0 0 58px var(--morph-color-soft),
+    0 0 92px var(--morph-color-faint);
+  opacity: .98;
+}
+
+.wave-morph-halo::after {
+  top: 5px;
+  width: 196px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--morph-color-a) 26%,
+    var(--morph-color) 50%,
+    var(--morph-color-b) 74%,
+    transparent 100%);
+  filter: blur(17px) saturate(1.7);
+  opacity: .76;
+}
+
+/* Le petit repère reste précis au centre du halo mais adopte désormais
+   exactement la couleur du morphing. */
+.wave-morph-marker::before {
+  background: linear-gradient(180deg, #ffffff 0%, var(--morph-color) 42%, rgba(10,18,20,.9) 100%);
+  box-shadow:
+    0 0 12px var(--morph-color),
+    0 0 28px var(--morph-color-soft),
+    0 2px 4px rgba(0,0,0,.75);
+}
+.wave-morph-marker::after {
+  border-color: var(--morph-color-soft);
+  box-shadow: 0 0 22px var(--morph-color-soft);
+}
+
+/* Les 4 formes restent constamment lumineuses. Elles ne disparaissent plus
+   quand leur poids audio tombe à zéro : leur fonction est aussi cartographique. */
+.wave-choice {
+  opacity: .98 !important;
+  color: #fff;
+  background: rgba(4,8,12,.76);
+  border: 1px solid currentColor;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  transition: background .12s linear, box-shadow .12s linear, filter .12s linear, transform .12s linear;
+}
+
+.wave-sine {
+  color: #00f5ff;
+  box-shadow: 0 0 14px rgba(0,245,255,.42), inset 0 0 13px rgba(0,245,255,.08);
+}
+.wave-triangle {
+  color: #8dff00;
+  box-shadow: 0 0 14px rgba(141,255,0,.40), inset 0 0 13px rgba(141,255,0,.08);
+}
+.wave-square {
+  color: #ff2bd6;
+  box-shadow: 0 0 14px rgba(255,43,214,.42), inset 0 0 13px rgba(255,43,214,.08);
+}
+.wave-sawtooth {
+  color: #ff9d00;
+  box-shadow: 0 0 14px rgba(255,157,0,.42), inset 0 0 13px rgba(255,157,0,.08);
+}
+
+.wave-choice path {
+  stroke-width: 5.2;
+  filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 9px currentColor);
+}
+
+.wave-choice.is-active {
+  background: rgba(5,9,13, calc(.70 + var(--wave-weight, 0) * .16));
+  filter: brightness(calc(1 + var(--wave-weight, 0) * .55));
+}
+
+.wave-choice.is-selected {
+  background: rgba(255,255,255,.10);
+  filter: brightness(1.65);
+}
+
+/* Le libellé sous le cadran reprend la teinte du halo : confirmation visuelle
+   secondaire, sans obliger à lire les pourcentages. */
+.wave-labels strong {
+  color: var(--morph-color);
+  text-shadow: 0 0 12px var(--morph-color-soft), 0 0 28px var(--morph-color-faint);
+  transition: color .08s linear, text-shadow .08s linear;
+}
+
+.waveform-ring.is-playing .wave-morph-halo::before {
+  filter: blur(11px) saturate(1.85);
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .wave-color-track {
+    -webkit-mask: radial-gradient(farthest-side,
+      transparent calc(100% - 51px),
+      #000 calc(100% - 46px),
+      #000 calc(100% - 8px),
+      transparent calc(100% - 2px));
+    mask: radial-gradient(farthest-side,
+      transparent calc(100% - 51px),
+      #000 calc(100% - 46px),
+      #000 calc(100% - 8px),
+      transparent calc(100% - 2px));
+  }
+  .wave-morph-halo::before { width: 132px; height: 66px; top: -10px; }
+  .wave-morph-halo::after { width: 164px; height: 40px; }
+  .wave-choice { min-width: 58px; }
+  .wave-choice path { stroke-width: 5.6; }
+}
