@@ -1,5 +1,10 @@
-# Oscillostudio — v8.1
+# Oscillostudio — v8.2
 
+
+## v8.2 — phase dans le cadran Forme d’onde
+- Le bouton Φ est physiquement placé uniquement dans le cadran Forme d’onde.
+- Taille réduite (24 px, 22 px sur petit écran) et position bas-droite du cercle intérieur.
+- Garde-fou CSS : un Φ ne peut jamais apparaître dans le cadran Fréquence.
 
 ## v8.1 — commandes compactes
 - STOP urgence réduit à un petit bouton avec uniquement le symbole ■.

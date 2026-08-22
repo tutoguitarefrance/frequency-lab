@@ -16,7 +16,7 @@
         <p class="subtitle">Deux cadrans indépendants : fréquence et forme d’onde. Aucun geste ne modifie les deux à la fois.</p>
       </div>
       <div class="status-cluster">
-        <span class="status-pill build-pill" aria-label="Version">v8.1</span>
+        <span class="status-pill build-pill" aria-label="Version">v8.2</span>
         <span id="audioStatus" class="status-pill status-off">Audio arrêté</span>
         <span id="sampleRateStatus" class="status-pill">Sample rate : —</span>
       </div>
@@ -103,7 +103,7 @@
 
           <div class="dial-center waveform-screen">
             <canvas id="wavePreview" width="520" height="280" aria-label="Prévisualisation de la forme d’onde"></canvas>
-            <button id="phaseInvert" class="wave-phase-button" type="button" aria-pressed="false" aria-label="Inverser la phase, actuellement 0 degré" title="Inversion de phase : 0°">
+            <button id="phaseInvert" class="wave-phase-button waveform-only-control" type="button" aria-pressed="false" aria-label="Inverser la phase, actuellement 0 degré" title="Inversion de phase : 0°">
               <span class="wave-phase-symbol" aria-hidden="true">Φ</span>
             </button>
             <div class="wave-readout">
