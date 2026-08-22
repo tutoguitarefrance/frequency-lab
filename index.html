@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#07090d" />
   <title>Oscillostudio — générateur de fréquences</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=7.4" />
 </head>
 <body>
   <main class="app-shell">
@@ -34,14 +34,16 @@
           <div class="frequency-track" aria-hidden="true"></div>
           <div id="frequencyMarker" class="frequency-marker" aria-hidden="true"></div>
 
-          <button class="freq-mark freq-mark-20" type="button" data-frequency="20">20</button>
-          <button class="freq-mark freq-mark-100" type="button" data-frequency="100">100</button>
-          <button class="freq-mark freq-mark-440" type="button" data-frequency="440">440</button>
-          <button class="freq-mark freq-mark-1k" type="button" data-frequency="1000">1k</button>
-          <button class="freq-mark freq-mark-5k" type="button" data-frequency="5000">5k</button>
-          <button class="freq-mark freq-mark-10k" type="button" data-frequency="10000">10k</button>
-          <button class="freq-mark freq-mark-20k" type="button" data-frequency="20000">20k</button>
-          <button class="freq-mark freq-mark-25k" type="button" data-frequency="25000">25k</button>
+          <button class="freq-mark" type="button" data-frequency="0">0</button>
+          <button class="freq-mark" type="button" data-frequency="10">10</button>
+          <button class="freq-mark" type="button" data-frequency="20">20</button>
+          <button class="freq-mark" type="button" data-frequency="100">100</button>
+          <button class="freq-mark" type="button" data-frequency="440">440</button>
+          <button class="freq-mark" type="button" data-frequency="1000">1k</button>
+          <button class="freq-mark" type="button" data-frequency="5000">5k</button>
+          <button class="freq-mark" type="button" data-frequency="10000">10k</button>
+          <button class="freq-mark" type="button" data-frequency="20000">20k</button>
+          <button class="freq-mark" type="button" data-frequency="25000">25k</button>
 
           <div class="dial-center frequency-screen">
             <canvas id="oscilloscope" width="520" height="520" aria-label="Oscilloscope du signal audio"></canvas>
@@ -179,7 +181,7 @@
     </section>
   </main>
 
-  <script src="audio-engine.js"></script>
-  <script src="app.js"></script>
+  <script src="audio-engine.js?v=7.4"></script>
+  <script src="app.js?v=7.4"></script>
 </body>
 </html>

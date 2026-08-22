@@ -66,16 +66,81 @@
     return { name: `${names[((nearest % 12) + 12) % 12]}${Math.floor(nearest / 12) - 1}`, cents };
   }
 
+  // Source unique de vérité du cadran de fréquence.
+  // Les mêmes points servent à placer les libellés, le curseur, la zone colorée
+  // et à convertir une position de pointeur en fréquence.
+  // 0–10 Hz est linéaire (un logarithme est impossible à 0), puis chaque
+  // intervalle positif est interpolé logarithmiquement.
+  const FREQUENCY_STOPS = [
+    { frequency: 0, angle: -135 },
+    { frequency: 10, angle: -115 },
+    { frequency: 20, angle: -98 },
+    { frequency: 100, angle: -72 },
+    { frequency: 440, angle: -45 },
+    { frequency: 1000, angle: -22 },
+    { frequency: 5000, angle: 18 },
+    { frequency: 10000, angle: 48 },
+    { frequency: 20000, angle: 82 },
+    { frequency: 25000, angle: 135 }
+  ];
+  const FREQUENCY_DIAL_START = FREQUENCY_STOPS[0].angle;
+  const FREQUENCY_DIAL_END = FREQUENCY_STOPS[FREQUENCY_STOPS.length - 1].angle;
+
+  function segmentRatioFromFrequency(f, a, b) {
+    if (a.frequency <= 0) return clamp((f - a.frequency) / (b.frequency - a.frequency), 0, 1);
+    return clamp(Math.log(f / a.frequency) / Math.log(b.frequency / a.frequency), 0, 1);
+  }
+
+  function frequencyFromSegmentRatio(t, a, b) {
+    const ratio = clamp(t, 0, 1);
+    if (a.frequency <= 0) return a.frequency + (b.frequency - a.frequency) * ratio;
+    return a.frequency * Math.pow(b.frequency / a.frequency, ratio);
+  }
+
   function frequencyToAngle(freq) {
-    if (freq <= 0) return -135;
-    const normalized = Math.log10(1 + freq) / Math.log10(25001);
-    return -135 + normalized * 270;
+    const f = clamp(Number(freq) || 0, 0, 25000);
+    if (f <= FREQUENCY_STOPS[0].frequency) return FREQUENCY_DIAL_START;
+    if (f >= FREQUENCY_STOPS[FREQUENCY_STOPS.length - 1].frequency) return FREQUENCY_DIAL_END;
+
+    for (let i = 0; i < FREQUENCY_STOPS.length - 1; i += 1) {
+      const a = FREQUENCY_STOPS[i];
+      const b = FREQUENCY_STOPS[i + 1];
+      if (f >= a.frequency && f <= b.frequency) {
+        const t = segmentRatioFromFrequency(f, a, b);
+        return a.angle + (b.angle - a.angle) * t;
+      }
+    }
+    return FREQUENCY_DIAL_START;
   }
 
   function angleToFrequency(angle) {
-    const normalized = clamp((angle + 135) / 270, 0, 1);
-    if (normalized <= 0.002) return 0;
-    return Math.pow(25001, normalized) - 1;
+    const aValue = clamp(Number(angle) || 0, FREQUENCY_DIAL_START, FREQUENCY_DIAL_END);
+    if (aValue <= FREQUENCY_DIAL_START) return 0;
+    if (aValue >= FREQUENCY_DIAL_END) return 25000;
+
+    for (let i = 0; i < FREQUENCY_STOPS.length - 1; i += 1) {
+      const a = FREQUENCY_STOPS[i];
+      const b = FREQUENCY_STOPS[i + 1];
+      if (aValue >= a.angle && aValue <= b.angle) {
+        const t = (aValue - a.angle) / (b.angle - a.angle);
+        return frequencyFromSegmentRatio(t, a, b);
+      }
+    }
+    return 0;
+  }
+
+  function positionFrequencyMarks() {
+    const radiusPercent = 43.2;
+    document.querySelectorAll('.freq-mark[data-frequency]').forEach((button) => {
+      const frequency = Number(button.dataset.frequency);
+      const stop = FREQUENCY_STOPS.find((item) => item.frequency === frequency);
+      if (!stop) return;
+      const radians = stop.angle * Math.PI / 180;
+      const x = 50 + Math.sin(radians) * radiusPercent;
+      const y = 50 - Math.cos(radians) * radiusPercent;
+      button.style.left = `${x}%`;
+      button.style.top = `${y}%`;
+    });
   }
 
   function shortestHueMix(a, b, t) {
@@ -152,7 +217,7 @@
   function updateFrequencyUI() {
     const actual = effectiveFrequency();
     const angle = frequencyToAngle(actual);
-    const progress = clamp(angle + 135, 0, 270);
+    const progress = clamp(angle - FREQUENCY_DIAL_START, 0, FREQUENCY_DIAL_END - FREQUENCY_DIAL_START);
     frequencyDial.style.setProperty('--frequency-angle', `${angle}deg`);
     frequencyDial.style.setProperty('--frequency-progress', `${progress}deg`);
     frequencyDial.setAttribute('aria-valuenow', actual.toFixed(3));
@@ -364,7 +429,7 @@
     const cy = rect.top + rect.height / 2;
     let angle = Math.atan2(event.clientY - cy, event.clientX - cx) * 180 / Math.PI + 90;
     if (angle > 180) angle -= 360;
-    angle = clamp(angle, -135, 135);
+    angle = clamp(angle, FREQUENCY_DIAL_START, FREQUENCY_DIAL_END);
     return angleToFrequency(angle);
   }
 
@@ -539,6 +604,8 @@
   window.addEventListener('pagehide', () => engine.panic());
   document.addEventListener('visibilitychange', () => { if (document.hidden && engine.isPlaying) { engine.stop(); setPlayingUI(false); } });
 
+  positionFrequencyMarks();
+  window.addEventListener('resize', positionFrequencyMarks, { passive: true });
   updateFineUI();
   updateWaveformUI();
   syncEngine();
