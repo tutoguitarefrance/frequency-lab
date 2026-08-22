@@ -179,7 +179,7 @@
             osc.type = voice.waveform;
             osc.frequency.setValueAtTime(freq, now);
             gain.gain.setValueAtTime(forceCreate ? voice.gain : 0, now);
-            if (!forceCreate) gain.gain.setTargetAtTime(voice.gain, now, 0.012);
+            if (!forceCreate) gain.gain.setTargetAtTime(voice.gain, now, 0.025);
             osc.connect(gain);
             gain.connect(this.masterGain);
             osc.start(now);
@@ -187,7 +187,8 @@
             this.nodes.set(voice.id, node);
           } else {
             node.osc.frequency.setTargetAtTime(freq, now, 0.006);
-            node.gain.gain.setTargetAtTime(voice.gain, now, 0.014);
+            node.gain.gain.cancelScheduledValues(now);
+            node.gain.gain.setTargetAtTime(voice.gain, now, 0.025);
           }
         }
       }

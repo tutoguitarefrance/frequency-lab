@@ -37,3 +37,15 @@ Aucune dépendance externe.
 - Morphing continu entre sinusoïde, triangle, carrée et dent de scie en glissant sur la couronne.
 - Le réglage fin ±100 cents modifie réellement la fréquence émise et la valeur centrale suit le signal.
 - La valeur de fréquence reste centrée dans le cadran.
+
+## v4 — morphing réellement continu
+
+La couronne de forme d’onde est désormais une commande analogique continue. Les quatre pictogrammes (sinus, triangle, carrée, dent de scie) ne sont plus des boutons. En glissant sur la couronne, le moteur effectue un crossfade continu entre les deux formes voisines, avec affichage en pourcentage (par ex. « SINUSOÏDE 63 % • TRIANGLE 37 % »). Les gains des oscillateurs restent lissés pendant le déplacement pour éviter les sauts audibles.
+
+## v5 — contrôle mobile
+
+- Un simple contact sur la molette tactile ne provoque plus de saut de fréquence.
+- Sur smartphone/tablette, la molette fonctionne en **variation relative** : tourner le doigt augmente ou diminue progressivement la fréquence à partir de la valeur actuelle.
+- **Pression longue (~0,5 s) sur la fréquence centrale puis relâcher** : activation de la saisie et ouverture du clavier numérique mobile.
+- Après validation/fermeture du clavier, la valeur est appliquée et la zone redevient protégée contre les taps accidentels.
+- Les contrôles souris/clavier de bureau restent disponibles.

@@ -26,12 +26,30 @@
   };
 
   const knob = $('frequencyKnob');
+  const frequencyInput = $('frequencyInput');
+  const frequencyReadout = $('frequencyReadout');
   const ring = $('waveformRing');
   const canvas = $('oscilloscope');
   const ctx = canvas.getContext('2d');
   let scopeFrame = null;
   let dragging = false;
+  let touchDialState = null;
+  let manualHoldState = null;
   let morphDragging = false;
+  let morphFrame = null;
+  let pendingMorph = 0;
+
+  const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const LONG_PRESS_MS = 520;
+  const LONG_PRESS_MOVE_PX = 12;
+  const TOUCH_CENTS_PER_DEGREE = 4;
+
+  if (coarsePointer) {
+    frequencyInput.readOnly = true;
+    frequencyInput.setAttribute('aria-readonly', 'true');
+  } else {
+    $('manualFrequencyHint').hidden = true;
+  }
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -137,7 +155,7 @@
     knob.setAttribute('aria-valuenow', String(actual));
     knob.setAttribute('aria-valuetext', `${formatHz(actual)} hertz`);
     if (document.activeElement !== $('frequencyInput')) {
-      $('frequencyInput').value = String(Number(actual.toFixed(3)));
+      frequencyInput.value = String(Number(actual.toFixed(3)));
     }
   }
 
@@ -182,25 +200,32 @@
     const data = morphMix(state.waveformMorph);
     state.waveformMix = data.mix;
     ring.style.setProperty('--wave-angle', `${data.wrapped * 90}deg`);
+    ring.setAttribute('aria-valuenow', data.wrapped.toFixed(3));
 
-    document.querySelectorAll('.wave-choice').forEach((btn, index) => {
-      const weight = data.mix[btn.dataset.wave] || 0;
-      btn.style.setProperty('--wave-weight', weight.toFixed(3));
-      btn.classList.toggle('is-active', weight > 0.015);
-      btn.classList.toggle('is-selected', weight > 0.985);
-      btn.setAttribute('aria-pressed', String(weight > 0.5));
+    document.querySelectorAll('.wave-choice').forEach((marker) => {
+      const weight = data.mix[marker.dataset.wave] || 0;
+      marker.style.setProperty('--wave-weight', weight.toFixed(3));
+      marker.classList.toggle('is-active', weight > 0.015);
+      marker.classList.toggle('is-selected', weight > 0.985);
     });
 
     const a = WAVEFORMS[data.index];
     const b = WAVEFORMS[data.next];
-    if (data.t < 0.015) {
-      $('waveformLabel').textContent = waveformNames[a];
+    const aPct = Math.round((1 - data.t) * 100);
+    const bPct = 100 - aPct;
+
+    if (data.t < 0.005) {
+      $('waveformLabel').textContent = `${waveformNames[a]} 100 %`;
+      ring.setAttribute('aria-valuetext', `${waveformNames[a]} 100 %`);
       ring.dataset.waveform = a;
-    } else if (data.t > 0.985) {
-      $('waveformLabel').textContent = waveformNames[b];
+    } else if (data.t > 0.995) {
+      $('waveformLabel').textContent = `${waveformNames[b]} 100 %`;
+      ring.setAttribute('aria-valuetext', `${waveformNames[b]} 100 %`);
       ring.dataset.waveform = b;
     } else {
-      $('waveformLabel').textContent = `${waveformNames[a]} ↔ ${waveformNames[b]}  ${Math.round(data.t * 100)} %`;
+      const text = `${waveformNames[a]} ${aPct} %  •  ${waveformNames[b]} ${bPct} %`;
+      $('waveformLabel').textContent = text;
+      ring.setAttribute('aria-valuetext', text);
       ring.dataset.waveform = 'morph';
     }
   }
@@ -209,6 +234,18 @@
     state.waveformMorph = ((Number(position) % 4) + 4) % 4;
     updateWaveformUI();
     syncEngine();
+  }
+
+  // Les mouvements tactiles/souris peuvent arriver plus vite que l'écran ne se redessine.
+  // On applique au maximum une valeur de morphing par frame : le curseur et le son
+  // suivent ainsi le doigt de façon continue, sans sauter entre quatre états.
+  function scheduleWaveformMorph(position) {
+    pendingMorph = position;
+    if (morphFrame !== null) return;
+    morphFrame = requestAnimationFrame(() => {
+      morphFrame = null;
+      setWaveformMorph(pendingMorph);
+    });
   }
 
   function setPlayingUI(playing) {
@@ -275,6 +312,41 @@
     drawIdleScope();
   }
 
+  function pointerAngleFromPosition(event) {
+    const rect = knob.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return Math.atan2(event.clientY - cy, event.clientX - cx) * 180 / Math.PI;
+  }
+
+  function normalizedAngleDelta(current, previous) {
+    let delta = current - previous;
+    while (delta > 180) delta -= 360;
+    while (delta < -180) delta += 360;
+    return delta;
+  }
+
+  function beginManualFrequencyEntry() {
+    frequencyInput.readOnly = false;
+    frequencyInput.removeAttribute('aria-readonly');
+    frequencyReadout.classList.add('is-editing');
+    $('manualFrequencyHint').textContent = 'Saisir la fréquence puis valider';
+    // L'appel est effectué directement depuis pointerup : Firefox/Android
+    // le considère comme une action utilisateur et ouvre le clavier virtuel.
+    try { frequencyInput.focus({ preventScroll: true }); } catch (_) { frequencyInput.focus(); }
+    try { frequencyInput.select(); } catch (_) {}
+  }
+
+  function finishManualFrequencyEntry() {
+    commitFrequency(frequencyInput.value);
+    frequencyReadout.classList.remove('is-editing', 'is-holding');
+    if (coarsePointer) {
+      frequencyInput.readOnly = true;
+      frequencyInput.setAttribute('aria-readonly', 'true');
+      $('manualFrequencyHint').textContent = 'Maintenir la fréquence pour saisir';
+    }
+  }
+
   function pointerFrequencyFromPosition(event) {
     const rect = knob.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -295,7 +367,23 @@
   }
 
   knob.addEventListener('pointerdown', (event) => {
-    if (event.target.closest('input')) return;
+    if (event.target.closest('.frequency-edit-row')) return;
+
+    // Sur écran tactile, on ne mappe plus la position absolue du doigt à la
+    // fréquence : cela provoquait des sauts énormes. La molette devient relative.
+    if (event.pointerType === 'touch' || event.pointerType === 'pen' || coarsePointer) {
+      dragging = true;
+      const angle = pointerAngleFromPosition(event);
+      touchDialState = {
+        pointerId: event.pointerId,
+        lastAngle: angle,
+        frequency: Math.max(effectiveFrequency(), 1),
+        moved: false
+      };
+      knob.setPointerCapture(event.pointerId);
+      return;
+    }
+
     dragging = true;
     knob.setPointerCapture(event.pointerId);
     commitFrequency(pointerFrequencyFromPosition(event));
@@ -303,15 +391,33 @@
 
   knob.addEventListener('pointermove', (event) => {
     if (!dragging) return;
+
+    if (touchDialState && touchDialState.pointerId === event.pointerId) {
+      event.preventDefault();
+      const angle = pointerAngleFromPosition(event);
+      const delta = normalizedAngleDelta(angle, touchDialState.lastAngle);
+      touchDialState.lastAngle = angle;
+      if (Math.abs(delta) < 0.05) return;
+      touchDialState.moved = true;
+      const factor = Math.pow(2, (delta * TOUCH_CENTS_PER_DEGREE) / 1200);
+      touchDialState.frequency = clamp(touchDialState.frequency * factor, 0, 25000);
+      commitFrequency(touchDialState.frequency);
+      return;
+    }
+
     commitFrequency(pointerFrequencyFromPosition(event));
   });
 
   knob.addEventListener('pointerup', (event) => {
     dragging = false;
+    touchDialState = null;
     try { knob.releasePointerCapture(event.pointerId); } catch (_) {}
   });
 
-  knob.addEventListener('pointercancel', () => { dragging = false; });
+  knob.addEventListener('pointercancel', () => {
+    dragging = false;
+    touchDialState = null;
+  });
 
   knob.addEventListener('wheel', (event) => {
     event.preventDefault();
@@ -339,38 +445,116 @@
     }
   });
 
-  $('frequencyInput').addEventListener('change', (event) => commitFrequency(event.target.value));
-  $('frequencyInput').addEventListener('keydown', (event) => {
+  frequencyInput.addEventListener('change', (event) => {
+    if (!coarsePointer) commitFrequency(event.target.value);
+  });
+  frequencyInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
+      event.preventDefault();
+      event.currentTarget.blur();
+    } else if (event.key === 'Escape') {
       event.preventDefault();
       event.currentTarget.blur();
     }
   });
-  $('frequencyInput').addEventListener('click', (event) => event.stopPropagation());
-  $('frequencyInput').addEventListener('pointerdown', (event) => event.stopPropagation());
+  frequencyInput.addEventListener('blur', () => {
+    if (coarsePointer && !frequencyInput.readOnly) finishManualFrequencyEntry();
+  });
+  frequencyInput.addEventListener('click', (event) => event.stopPropagation());
 
-  document.querySelectorAll('.wave-choice').forEach((button, index) => {
-    button.addEventListener('click', () => setWaveformMorph(index));
+  // Mobile : pression longue sur la valeur centrale, puis relâcher = clavier numérique.
+  // Un tap court ne modifie rien et n'ouvre pas accidentellement le clavier.
+  frequencyReadout.addEventListener('pointerdown', (event) => {
+    event.stopPropagation();
+    if (!coarsePointer && event.pointerType === 'mouse') return;
+    if (!frequencyInput.readOnly) return;
+    event.preventDefault();
+    manualHoldState = {
+      pointerId: event.pointerId,
+      startedAt: performance.now(),
+      x: event.clientX,
+      y: event.clientY,
+      cancelled: false
+    };
+    frequencyReadout.classList.add('is-holding');
+    try { frequencyReadout.setPointerCapture(event.pointerId); } catch (_) {}
   });
 
+  frequencyReadout.addEventListener('pointermove', (event) => {
+    if (!manualHoldState || manualHoldState.pointerId !== event.pointerId) return;
+    const distance = Math.hypot(event.clientX - manualHoldState.x, event.clientY - manualHoldState.y);
+    if (distance > LONG_PRESS_MOVE_PX) {
+      manualHoldState.cancelled = true;
+      frequencyReadout.classList.remove('is-holding');
+    }
+  });
+
+  frequencyReadout.addEventListener('pointerup', (event) => {
+    if (!manualHoldState || manualHoldState.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const elapsed = performance.now() - manualHoldState.startedAt;
+    const shouldEdit = !manualHoldState.cancelled && elapsed >= LONG_PRESS_MS;
+    manualHoldState = null;
+    frequencyReadout.classList.remove('is-holding');
+    try { frequencyReadout.releasePointerCapture(event.pointerId); } catch (_) {}
+    if (shouldEdit) beginManualFrequencyEntry();
+  });
+
+  frequencyReadout.addEventListener('pointercancel', () => {
+    manualHoldState = null;
+    frequencyReadout.classList.remove('is-holding');
+  });
+
+  frequencyReadout.addEventListener('contextmenu', (event) => {
+    if (coarsePointer) event.preventDefault();
+  });
+
+  // Toute la couronne métallique est la commande. Les pictogrammes ne sont plus
+  // quatre boutons : ce sont uniquement des repères sur une molette analogique.
   ring.addEventListener('pointerdown', (event) => {
-    if (event.target.closest('#frequencyKnob') || event.target.closest('.wave-choice')) return;
+    if (event.target.closest('#frequencyKnob')) return;
+    event.preventDefault();
     morphDragging = true;
     ring.setPointerCapture(event.pointerId);
-    setWaveformMorph(pointerMorphFromPosition(event));
+    scheduleWaveformMorph(pointerMorphFromPosition(event));
   });
 
   ring.addEventListener('pointermove', (event) => {
     if (!morphDragging) return;
-    setWaveformMorph(pointerMorphFromPosition(event));
+    event.preventDefault();
+    scheduleWaveformMorph(pointerMorphFromPosition(event));
   });
 
   ring.addEventListener('pointerup', (event) => {
+    if (!morphDragging) return;
+    scheduleWaveformMorph(pointerMorphFromPosition(event));
     morphDragging = false;
     try { ring.releasePointerCapture(event.pointerId); } catch (_) {}
   });
 
   ring.addEventListener('pointercancel', () => { morphDragging = false; });
+
+  ring.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    const step = event.shiftKey ? 0.01 : 0.04;
+    const direction = event.deltaY < 0 ? 1 : -1;
+    setWaveformMorph(state.waveformMorph + direction * step);
+  }, { passive: false });
+
+  ring.addEventListener('keydown', (event) => {
+    const step = event.shiftKey ? 0.01 : 0.04;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      setWaveformMorph(state.waveformMorph + step);
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      setWaveformMorph(state.waveformMorph - step);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setWaveformMorph(0);
+    }
+  });
 
   $('overRichness').addEventListener('input', (event) => {
     state.overRichness = Number(event.target.value);

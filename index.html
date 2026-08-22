@@ -36,22 +36,22 @@
       </div>
 
       <div class="dial-column">
-        <div id="waveformRing" class="waveform-ring" data-waveform="sine">
+        <div id="waveformRing" class="waveform-ring" data-waveform="sine" role="slider" tabindex="0" aria-label="Morphing continu de la forme d’onde" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0" aria-valuetext="Sinusoïde 100 %">
           <div class="metal-ring" aria-hidden="true"></div>
           <div id="waveMorphMarker" class="wave-morph-marker" aria-hidden="true"></div>
 
-          <button class="wave-choice wave-sine is-selected" type="button" data-wave="sine" aria-label="Sinusoïde" title="Sinusoïde">
+          <div class="wave-choice wave-sine is-selected" data-wave="sine" aria-hidden="true">
             <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 13 C10 1, 18 1, 26 13 S42 25, 50 13 S58 1, 62 13"/></svg>
-          </button>
-          <button class="wave-choice wave-triangle" type="button" data-wave="triangle" aria-label="Triangle" title="Triangle">
+          </div>
+          <div class="wave-choice wave-triangle" data-wave="triangle" aria-hidden="true">
             <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 22 L17 4 L32 22 L47 4 L62 22"/></svg>
-          </button>
-          <button class="wave-choice wave-square" type="button" data-wave="square" aria-label="Carrée" title="Carrée">
+          </div>
+          <div class="wave-choice wave-square" data-wave="square" aria-hidden="true">
             <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 21 L2 5 L17 5 L17 21 L32 21 L32 5 L47 5 L47 21 L62 21"/></svg>
-          </button>
-          <button class="wave-choice wave-sawtooth" type="button" data-wave="sawtooth" aria-label="Dent de scie" title="Dent de scie">
+          </div>
+          <div class="wave-choice wave-sawtooth" data-wave="sawtooth" aria-hidden="true">
             <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 22 L17 4 L17 22 L32 4 L32 22 L47 4 L47 22 L62 4"/></svg>
-          </button>
+          </div>
 
           <div id="frequencyKnob" class="frequency-knob" role="slider" tabindex="0" aria-label="Fréquence" aria-valuemin="0" aria-valuemax="25000" aria-valuenow="440">
             <div class="knob-face">
@@ -60,10 +60,11 @@
               <div class="scope-grid" aria-hidden="true"></div>
               <div class="knob-readout">
                 <span id="scopeState" class="scope-state">FRÉQUENCE</span>
-                <div class="frequency-edit-row">
-                  <input id="frequencyInput" type="number" min="0" max="25000" step="0.001" value="440" inputmode="decimal" aria-label="Fréquence en hertz" />
+                <div id="frequencyReadout" class="frequency-edit-row" aria-label="Valeur de fréquence. Maintenir pour saisir manuellement sur mobile.">
+                  <input id="frequencyInput" type="number" min="0" max="25000" step="0.001" value="440" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Fréquence en hertz" />
                   <span>Hz</span>
                 </div>
+                <span id="manualFrequencyHint" class="manual-frequency-hint">Maintenir la fréquence pour saisir</span>
                 <span id="noteHint" class="note-hint">A4 • 0 cent</span>
               </div>
             </div>
@@ -71,7 +72,7 @@
         </div>
 
         <div class="wave-labels" aria-live="polite">
-          <span>FORME D’ONDE • GLISSER SUR LA COURONNE</span>
+          <span>FORME D’ONDE • MOLETTE CONTINUE — GLISSER SUR LA COURONNE</span>
           <strong id="waveformLabel">SINUSOÏDE</strong>
         </div>
 
