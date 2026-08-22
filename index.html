@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#07090d" />
   <title>Oscillostudio — générateur de fréquences</title>
-  <link rel="stylesheet" href="styles.css?v=7.5" />
+  <link rel="stylesheet" href="styles.css?v=7.9" />
 </head>
 <body>
   <main class="app-shell">
@@ -16,7 +16,7 @@
         <p class="subtitle">Deux cadrans indépendants : fréquence et forme d’onde. Aucun geste ne modifie les deux à la fois.</p>
       </div>
       <div class="status-cluster">
-        <span class="status-pill build-pill" aria-label="Version">v7.5</span>
+        <span class="status-pill build-pill" aria-label="Version">v7.9</span>
         <span id="audioStatus" class="status-pill status-off">Audio arrêté</span>
         <span id="sampleRateStatus" class="status-pill">Sample rate : —</span>
       </div>
@@ -71,6 +71,10 @@
         </div>
       </article>
 
+      <div id="mobileTransportSlot" class="mobile-transport-slot" aria-label="Lecture mobile">
+        <button id="toggleToneMobile" class="play-button mobile-play-button" type="button" aria-pressed="false"><span class="play-symbol">▶</span><span class="tone-button-label">PLAY</span></button>
+      </div>
+
       <article class="dial-module waveform-module">
         <div class="module-heading">
           <span class="module-kicker">CADRAN 2</span>
@@ -113,48 +117,61 @@
       <div class="harmonic-controls">
         <div class="harmonic-slider over-control">
           <div class="harmonic-copy">
-            <strong>SUR ↑</strong>
+            <strong>OCTAVES + ↑</strong>
             <span><b id="overRichnessValue">0</b>%</span>
-            <small>sur-harmoniques</small>
+            <small>×2 · ×4 · ×8…</small>
           </div>
           <div class="vertical-control vertical-up">
             <span>+</span>
-            <input id="overRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse des sur-harmoniques" />
+            <input id="overRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse des octaves supérieures" />
             <span>0</span>
           </div>
         </div>
 
-        <div class="transport-stack">
-          <button id="toggleTone" class="play-button" type="button" aria-pressed="false"><span class="play-symbol">▶</span><span id="toneButtonLabel">PLAY</span></button>
-          <button id="panicStop" class="stop-button" type="button">STOP</button>
+        <div id="desktopTransportSlot" class="transport-stack desktop-transport-slot">
+          <button id="toggleToneDesktop" class="play-button" type="button" aria-pressed="false"><span class="play-symbol">▶</span><span class="tone-button-label">PLAY</span></button>
         </div>
 
         <div class="harmonic-slider sub-control">
           <div class="vertical-control vertical-down">
             <span>0</span>
-            <input id="subRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse des subharmoniques" />
+            <input id="subRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse des octaves inférieures" />
             <span>+</span>
           </div>
           <div class="harmonic-copy">
-            <strong>SUB ↓</strong>
+            <strong>OCTAVES − ↓</strong>
             <span><b id="subRichnessValue">0</b>%</span>
-            <small>subharmoniques</small>
+            <small>÷2 · ÷4 · ÷8…</small>
           </div>
         </div>
       </div>
     </section>
 
     <section class="control-strip card">
-      <label class="fundamental-switch">
-        <input id="fundamentalEnabled" type="checkbox" checked />
-        <span class="switch-ui"></span>
-        <span><strong>Fondamentale</strong><small id="fundamentalState">active</small></span>
-      </label>
+      <div class="signal-actions">
+        <label class="fundamental-switch">
+          <input id="fundamentalEnabled" type="checkbox" checked />
+          <span class="switch-ui"></span>
+          <span><strong>Fondamentale</strong><small id="fundamentalState">active</small></span>
+        </label>
+        <button id="phaseInvert" class="phase-button" type="button" aria-pressed="false" title="Inverse la polarité de toutes les composantes du signal">
+          <span class="phase-icon" aria-hidden="true">↕</span>
+          <span><strong>Inversion de phase</strong><small>Phase <b id="phaseState">0°</b></small></span>
+        </button>
+      </div>
 
       <div class="fine-control">
         <div class="control-label-row"><label for="centsSlider">Réglage fin Oscillostudio</label><output id="centsOutput">0 cent</output></div>
         <input id="centsSlider" class="range" type="range" min="-100" max="100" step="1" value="0" />
         <div class="range-scale"><span>−100</span><span>0</span><span>+100</span></div>
+      </div>
+
+      <div class="calibration-control">
+        <div class="control-label-row"><label for="outputCalibrationHz">Calibration sortie</label><output id="outputCalibrationOutput">−0,05 Hz</output></div>
+        <div class="calibration-row">
+          <input id="outputCalibrationHz" type="number" min="-2" max="2" step="0.01" value="-0.05" inputmode="decimal" aria-label="Correction de calibration de sortie en hertz" />
+          <small>Compensation appliquée à chaque fréquence générée. Mettre 0,00 sur un appareil déjà juste.</small>
+        </div>
       </div>
 
       <div class="volume-control">
@@ -185,13 +202,16 @@
     <section class="diagnostics card">
       <div><span>Sample rate</span><strong id="sampleRateValue">—</strong></div>
       <div><span>Nyquist</span><strong id="nyquistValue">—</strong></div>
-      <div><span>Sur-harmoniques</span><strong id="overCount">0</strong></div>
-      <div><span>Subharmoniques</span><strong id="subCount">0</strong></div>
+      <div><span>Octaves +</span><strong id="overCount">0</strong></div>
+      <div><span>Octaves −</span><strong id="subCount">0</strong></div>
       <p id="nyquistWarning">Le module demandera 96 kHz si le navigateur l’accepte.</p>
     </section>
   </main>
 
-  <script src="audio-engine.js?v=7.5"></script>
-  <script src="app.js?v=7.5"></script>
+  <div id="quickMessage" class="quick-message" role="status" aria-live="polite"></div>
+  <button id="panicStop" class="panic-stop" type="button" aria-label="Arrêt d’urgence immédiat du signal" title="Arrêt immédiat">■ STOP URGENCE</button>
+
+  <script src="audio-engine.js?v=7.9"></script>
+  <script src="app.js?v=7.9"></script>
 </body>
 </html>

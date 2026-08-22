@@ -20,6 +20,8 @@
     cents: 0,
     waveformMorph: 0,
     waveformMix: { sine: 1, triangle: 0, square: 0, sawtooth: 0 },
+    phaseInverted: false,
+    outputCalibrationHz: -0.05,
     masterVolume: 0.25,
     autoNormalize: true,
     fundamentalEnabled: true,
@@ -190,27 +192,42 @@
     const partials = [];
     if (state.fundamentalEnabled) partials.push({ id: 'fundamental', ratio: 1, level: 1, enabled: true });
 
+    // OCTAVES UNIQUEMENT : aucun 3f, 5f, f/3, etc.
+    // Au-dessus : f×2, f×4, f×8... ; au-dessous : f/2, f/4, f/8...
+    // Le curseur fait entrer progressivement les octaves, de la plus proche à la plus éloignée.
+    const OCTAVE_STEPS = 9;
+
     const over = state.overRichness / 100;
-    const overCount = over === 0 ? 0 : Math.max(1, Math.ceil(over * 9));
+    const overCount = over === 0 ? 0 : Math.max(1, Math.ceil(over * OCTAVE_STEPS));
     for (let i = 0; i < overCount; i += 1) {
-      const n = i + 2;
-      const activation = clamp((over - i / 9) * 9, 0, 1);
-      const level = activation * over * (0.34 / Math.pow(n - 1, 0.68));
-      partials.push({ id: `over-${n}`, ratio: n, level, enabled: level > 0.0005, waveform: 'sine' });
+      const octave = i + 1;
+      const activation = clamp((over - i / OCTAVE_STEPS) * OCTAVE_STEPS, 0, 1);
+      const level = activation * over * (0.34 / Math.pow(1.45, i));
+      partials.push({
+        id: `over-oct-${octave}`,
+        ratio: Math.pow(2, octave),
+        level,
+        enabled: level > 0.0005
+      });
     }
 
     const sub = state.subRichness / 100;
-    const subCount = sub === 0 ? 0 : Math.max(1, Math.ceil(sub * 5));
+    const subCount = sub === 0 ? 0 : Math.max(1, Math.ceil(sub * OCTAVE_STEPS));
     for (let i = 0; i < subCount; i += 1) {
-      const n = i + 2;
-      const activation = clamp((sub - i / 5) * 5, 0, 1);
-      const level = activation * sub * (0.22 / Math.pow(n - 1, 0.55));
-      partials.push({ id: `sub-${n}`, ratio: 1 / n, level, enabled: level > 0.0005, waveform: 'sine' });
+      const octave = i + 1;
+      const activation = clamp((sub - i / OCTAVE_STEPS) * OCTAVE_STEPS, 0, 1);
+      const level = activation * sub * (0.22 / Math.pow(1.35, i));
+      partials.push({
+        id: `sub-oct-${octave}`,
+        ratio: 1 / Math.pow(2, octave),
+        level,
+        enabled: level > 0.0005
+      });
     }
 
     state.partials = partials;
-    $('overCount').textContent = String(partials.filter(p => p.id.startsWith('over-') && p.enabled).length);
-    $('subCount').textContent = String(partials.filter(p => p.id.startsWith('sub-') && p.enabled).length);
+    $('overCount').textContent = String(partials.filter(p => p.id.startsWith('over-oct-') && p.enabled).length);
+    $('subCount').textContent = String(partials.filter(p => p.id.startsWith('sub-oct-') && p.enabled).length);
   }
 
   function syncEngine() {
@@ -221,7 +238,9 @@
       masterVolume: state.masterVolume,
       autoNormalize: state.autoNormalize,
       partials: state.partials,
-      waveformMix: state.waveformMix
+      waveformMix: state.waveformMix,
+      phaseInverted: state.phaseInverted,
+      outputCalibrationHz: state.outputCalibrationHz
     });
   }
 
@@ -348,6 +367,7 @@
       const phase = phaseOffset + (x / w) * Math.PI * 2 * cycles;
       let yv = 0;
       WAVEFORMS.forEach((wave) => { yv += waveformSample(wave, phase) * (mix[wave] || 0); });
+      if (state.phaseInverted) yv *= -1;
       const y = h / 2 - yv * h * .31;
       if (x === 0) waveCtx.moveTo(x, y); else waveCtx.lineTo(x, y);
     }
@@ -416,10 +436,16 @@
   function setPlayingUI(playing) {
     frequencyDial.classList.toggle('is-playing', playing);
     waveformDial.classList.toggle('is-playing', playing);
-    $('toggleTone').classList.toggle('is-playing', playing);
-    $('toggleTone').setAttribute('aria-pressed', String(playing));
-    $('toggleTone').querySelector('.play-symbol').textContent = playing ? '■' : '▶';
-    $('toneButtonLabel').textContent = playing ? 'PAUSE' : 'PLAY';
+    ['toggleToneDesktop', 'toggleToneMobile'].forEach((id) => {
+      const button = $(id);
+      if (!button) return;
+      button.classList.toggle('is-playing', playing);
+      button.setAttribute('aria-pressed', String(playing));
+      const symbol = button.querySelector('.play-symbol');
+      const label = button.querySelector('.tone-button-label');
+      if (symbol) symbol.textContent = playing ? '■' : '▶';
+      if (label) label.textContent = playing ? 'STOP' : 'PLAY';
+    });
     $('frequencyModeLabel').textContent = playing ? 'OSCILLOSCOPE' : 'FRÉQUENCE';
     $('audioStatus').textContent = playing ? 'Audio actif' : 'Audio arrêté';
     $('audioStatus').classList.toggle('status-on', playing);
@@ -602,13 +628,82 @@
     button.addEventListener('click', (event) => { event.stopPropagation(); setWaveformMorph(Number(button.dataset.waveIndex)); });
   });
 
-  $('overRichness').addEventListener('input', (event) => { state.overRichness = Number(event.target.value); $('overRichnessValue').textContent = event.target.value; syncEngine(); });
-  $('subRichness').addEventListener('input', (event) => { state.subRichness = Number(event.target.value); $('subRichnessValue').textContent = event.target.value; syncEngine(); });
-  $('fundamentalEnabled').addEventListener('change', (event) => { state.fundamentalEnabled = event.target.checked; $('fundamentalState').textContent = state.fundamentalEnabled ? 'active' : 'coupée'; syncEngine(); });
+  let quickMessageTimer = null;
+  function showQuickMessage(message) {
+    const node = $('quickMessage');
+    if (!node) return;
+    node.textContent = message;
+    node.classList.add('is-visible');
+    window.clearTimeout(quickMessageTimer);
+    quickMessageTimer = window.setTimeout(() => node.classList.remove('is-visible'), 1800);
+  }
+
+  function setFundamentalEnabled(enabled, { silent = false } = {}) {
+    state.fundamentalEnabled = Boolean(enabled);
+    $('fundamentalEnabled').checked = state.fundamentalEnabled;
+    $('fundamentalState').textContent = state.fundamentalEnabled ? 'active' : 'coupée';
+    if (!silent) syncEngine();
+  }
+
+  function ensureAudibleSourceAfterHarmonicChange() {
+    if (!state.fundamentalEnabled && state.overRichness <= 0 && state.subRichness <= 0) {
+      setFundamentalEnabled(true, { silent: true });
+      showQuickMessage('Fondamentale réactivée : aucune octave +/− n’est active.');
+    }
+  }
+
+  function updatePhaseUI() {
+    const button = $('phaseInvert');
+    button.classList.toggle('is-active', state.phaseInverted);
+    button.setAttribute('aria-pressed', String(state.phaseInverted));
+    $('phaseState').textContent = state.phaseInverted ? '180°' : '0°';
+    drawWavePreview(0);
+  }
+
+  $('overRichness').addEventListener('input', (event) => {
+    state.overRichness = Number(event.target.value);
+    $('overRichnessValue').textContent = event.target.value;
+    ensureAudibleSourceAfterHarmonicChange();
+    syncEngine();
+  });
+  $('subRichness').addEventListener('input', (event) => {
+    state.subRichness = Number(event.target.value);
+    $('subRichnessValue').textContent = event.target.value;
+    ensureAudibleSourceAfterHarmonicChange();
+    syncEngine();
+  });
+  $('fundamentalEnabled').addEventListener('change', (event) => {
+    if (!event.target.checked && state.overRichness <= 0 && state.subRichness <= 0) {
+      setFundamentalEnabled(true, { silent: true });
+      showQuickMessage('Active OCTAVES + ou OCTAVES − avant de couper la fondamentale.');
+      return;
+    }
+    setFundamentalEnabled(event.target.checked);
+  });
+  $('phaseInvert').addEventListener('click', () => {
+    state.phaseInverted = !state.phaseInverted;
+    updatePhaseUI();
+    syncEngine();
+  });
   $('centsSlider').addEventListener('input', (event) => { state.cents = Number(event.target.value); updateFineUI(); updateFrequencyUI(); syncEngine(); updateDiagnostics(); });
+  const calibrationInput = $('outputCalibrationHz');
+  const calibrationOutput = $('outputCalibrationOutput');
+  function updateCalibrationUI() {
+    if (!calibrationInput || !calibrationOutput) return;
+    calibrationInput.value = state.outputCalibrationHz.toFixed(2);
+    calibrationOutput.textContent = `${state.outputCalibrationHz >= 0 ? '+' : '−'}${Math.abs(state.outputCalibrationHz).toFixed(2).replace('.', ',')} Hz`;
+  }
+  if (calibrationInput) calibrationInput.addEventListener('change', (event) => {
+    const raw = String(event.target.value).replace(',', '.');
+    const value = Number(raw);
+    if (!Number.isFinite(value)) { updateCalibrationUI(); return; }
+    state.outputCalibrationHz = clamp(value, -2, 2);
+    updateCalibrationUI();
+    syncEngine();
+  });
   $('masterVolume').addEventListener('input', (event) => { state.masterVolume = Number(event.target.value) / 100; $('masterVolumeValue').textContent = `${event.target.value} %`; syncEngine(); });
 
-  $('toggleTone').addEventListener('click', async () => {
+  async function toggleTonePlayback() {
     try {
       if (engine.isPlaying) { engine.stop(); setPlayingUI(false); }
       else { syncEngine(); await engine.start(); setPlayingUI(true); }
@@ -617,6 +712,10 @@
       setPlayingUI(false);
       alert(`Impossible de démarrer l’audio : ${err.message}`);
     }
+  }
+  ['toggleToneDesktop', 'toggleToneMobile'].forEach((id) => {
+    const button = $(id);
+    if (button) button.addEventListener('click', toggleTonePlayback);
   });
   $('panicStop').addEventListener('click', () => { engine.panic(); setPlayingUI(false); });
   window.addEventListener('pagehide', () => engine.panic());
@@ -625,7 +724,9 @@
   positionFrequencyMarks();
   window.addEventListener('resize', positionFrequencyMarks, { passive: true });
   updateFineUI();
+  updateCalibrationUI();
   updateWaveformUI();
+  updatePhaseUI();
   syncEngine();
   updateFrequencyUI();
   updateDiagnostics();

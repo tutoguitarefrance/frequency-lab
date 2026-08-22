@@ -17,6 +17,12 @@
       this.autoNormalize = true;
       this.partials = [];
       this.waveformMix = { sine: 1, triangle: 0, square: 0, sawtooth: 0 };
+      this.phaseInverted = false;
+      // Compensation additive de la chaîne de sortie/mesure.
+      // Réglable depuis l'interface ; appliquée à CHAQUE fréquence nominale
+      // après calcul du ratio d'octave, afin qu'un même offset mesuré reste corrigé
+      // à 440 Hz comme à 880 Hz.
+      this.outputCalibrationHz = -0.05;
     }
 
     async ensureContext() {
@@ -62,12 +68,16 @@
       return Math.min(25000, this.baseFrequency * Math.pow(2, this.cents / 1200));
     }
 
-    setState({ baseFrequency, cents, masterVolume, autoNormalize, partials, waveformMix }) {
+    setState({ baseFrequency, cents, masterVolume, autoNormalize, partials, waveformMix, phaseInverted, outputCalibrationHz }) {
       if (typeof baseFrequency === 'number') this.baseFrequency = Math.max(0, Math.min(25000, baseFrequency));
       if (typeof cents === 'number') this.cents = Math.max(-100, Math.min(100, cents));
       if (typeof masterVolume === 'number') this.masterVolume = Math.max(0, Math.min(1, masterVolume));
       if (typeof autoNormalize === 'boolean') this.autoNormalize = autoNormalize;
       if (Array.isArray(partials)) this.partials = partials.map(p => ({ ...p }));
+      if (typeof phaseInverted === 'boolean') this.phaseInverted = phaseInverted;
+      if (typeof outputCalibrationHz === 'number' && Number.isFinite(outputCalibrationHz)) {
+        this.outputCalibrationHz = Math.max(-2, Math.min(2, outputCalibrationHz));
+      }
       if (waveformMix && typeof waveformMix === 'object') {
         const next = {};
         MORPH_WAVEFORMS.forEach(wave => {
@@ -79,7 +89,11 @@
     }
 
     effectiveFrequencyForRatio(ratio) {
-      const f = this.getDetunedFundamental() * ratio;
+      // La calibration est ADDITIVE et appliquée après le ratio :
+      // 440 Hz -> 439,95 Hz et 880 Hz -> 879,95 Hz avec -0,05 Hz.
+      // On évite ainsi de doubler la correction sur les octaves.
+      const nominal = this.getDetunedFundamental() * ratio;
+      const f = nominal > 0 ? Math.max(0, nominal + this.outputCalibrationHz) : 0;
       if (!this.context) return f;
       const nyquist = this.getNyquist();
       if (!nyquist || f <= 0) return Math.max(0, f);
@@ -94,21 +108,15 @@
     }
 
     voicesForPartial(partial, factor) {
-      if (partial.waveform) {
-        return [{
-          id: partial.id,
-          waveform: partial.waveform,
-          gain: partial.level * factor
-        }];
-      }
+      const phaseSign = this.phaseInverted ? -1 : 1;
 
-      // La fondamentale morphable garde les 4 oscillateurs actifs et synchronisés.
-      // Le changement de forme est un véritable mélange continu des signaux,
-      // et non un changement brutal de OscillatorNode.type.
+      // Toutes les composantes (fondamentale et octaves supérieures/inférieures) héritent
+      // de la même forme d’onde morphée. Ainsi, le cadran de forme reste audible
+      // même lorsque la fondamentale est coupée.
       return MORPH_WAVEFORMS.map(waveform => ({
         id: `${partial.id}::${waveform}`,
         waveform,
-        gain: partial.level * factor * (this.waveformMix[waveform] || 0)
+        gain: phaseSign * partial.level * factor * (this.waveformMix[waveform] || 0)
       }));
     }
 
