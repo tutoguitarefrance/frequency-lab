@@ -505,7 +505,7 @@
 
   /* Fréquence : uniquement ce cadran. Sur tactile, rotation relative. */
   frequencyDial.addEventListener('pointerdown', (event) => {
-    if (event.target.closest('.frequency-readout') || event.target.closest('.freq-mark') || event.target.closest('.scope-phase-button')) return;
+    if (event.target.closest('.frequency-readout') || event.target.closest('.freq-mark')) return;
     event.preventDefault();
     frequencyDrag = {
       pointerId: event.pointerId,
@@ -596,7 +596,7 @@
 
   /* Forme d'onde : uniquement le second cadran. */
   waveformDial.addEventListener('pointerdown', (event) => {
-    if (event.target.closest('.wave-anchor')) return;
+    if (event.target.closest('.wave-anchor') || event.target.closest('.wave-phase-button')) return;
     event.preventDefault();
     waveformDrag = { pointerId:event.pointerId };
     waveformDial.setPointerCapture(event.pointerId);

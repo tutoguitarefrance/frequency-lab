@@ -1,5 +1,10 @@
-# Oscillostudio — v8
+# Oscillostudio — v8.1
 
+
+## v8.1 — commandes compactes
+- STOP urgence réduit à un petit bouton avec uniquement le symbole ■.
+- Inversion de phase déplacée dans le cadran Forme d’onde sous forme d’un mini bouton Φ incliné.
+- Le bouton Φ est isolé des gestes de morphing pour éviter toute modification accidentelle.
 
 ## v8 — consolidation
 - Base fonctionnelle reprise de la v7.11.

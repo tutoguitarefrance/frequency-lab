@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#07090d" />
   <title>Oscillostudio — générateur de fréquences</title>
-  <link rel="stylesheet" href="styles.css?v=8.0" />
+  <link rel="stylesheet" href="styles.css?v=8.1" />
 </head>
 <body>
   <main class="app-shell">
@@ -16,7 +16,7 @@
         <p class="subtitle">Deux cadrans indépendants : fréquence et forme d’onde. Aucun geste ne modifie les deux à la fois.</p>
       </div>
       <div class="status-cluster">
-        <span class="status-pill build-pill" aria-label="Version">v8</span>
+        <span class="status-pill build-pill" aria-label="Version">v8.1</span>
         <span id="audioStatus" class="status-pill status-off">Audio arrêté</span>
         <span id="sampleRateStatus" class="status-pill">Sample rate : —</span>
       </div>
@@ -58,9 +58,6 @@
           <div class="dial-center frequency-screen">
             <canvas id="oscilloscope" width="520" height="520" aria-label="Oscilloscope du signal audio"></canvas>
             <div class="scope-grid" aria-hidden="true"></div>
-            <button id="phaseInvert" class="scope-phase-button" type="button" aria-pressed="false" aria-label="Inverser la phase, actuellement 0 degré" title="Inversion de phase : 0°">
-              <span class="scope-phase-symbol" aria-hidden="true">Φ</span>
-            </button>
             <div class="frequency-overlay">
               <span id="frequencyModeLabel" class="screen-label">FRÉQUENCE</span>
               <div id="frequencyReadout" class="frequency-readout" aria-label="Maintenir pour saisir une fréquence exacte">
@@ -106,6 +103,9 @@
 
           <div class="dial-center waveform-screen">
             <canvas id="wavePreview" width="520" height="280" aria-label="Prévisualisation de la forme d’onde"></canvas>
+            <button id="phaseInvert" class="wave-phase-button" type="button" aria-pressed="false" aria-label="Inverser la phase, actuellement 0 degré" title="Inversion de phase : 0°">
+              <span class="wave-phase-symbol" aria-hidden="true">Φ</span>
+            </button>
             <div class="wave-readout">
               <span class="screen-label">MORPHING</span>
               <strong id="waveformLabel">SINUSOÏDE 100 %</strong>
@@ -210,7 +210,7 @@
   <div id="quickMessage" class="quick-message" role="status" aria-live="polite"></div>
   <button id="panicStop" class="panic-stop" type="button" aria-label="Arrêt d’urgence immédiat du signal" title="Arrêt immédiat">■</button>
 
-  <script src="audio-engine.js?v=8.0"></script>
-  <script src="app.js?v=8.0"></script>
+  <script src="audio-engine.js?v=8.1"></script>
+  <script src="app.js?v=8.1"></script>
 </body>
 </html>
