@@ -83,7 +83,7 @@ h2 { margin-bottom: 0; }
 .scope-grid { background-image:linear-gradient(rgba(122,255,225,.065) 1px,transparent 1px),linear-gradient(90deg,rgba(122,255,225,.065) 1px,transparent 1px),linear-gradient(rgba(122,255,225,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(122,255,225,.10) 1px,transparent 1px); background-size:12% 12%,12% 12%,50% 50%,50% 50%; mask-image:radial-gradient(circle,#000 0 69%,transparent 70%); }
 .frequency-dial.is-playing .frequency-screen { background:radial-gradient(circle,#0a1716 0%,#06100e 67%,#030706 100%); }
 .frequency-dial.is-playing #oscilloscope,.frequency-dial.is-playing .scope-grid { opacity:1; }
-.wave-phase-button { position:absolute; z-index:50; right:9%; bottom:9%; top:auto; width:24px; height:24px; min-width:24px; min-height:24px; padding:0; display:grid; place-items:center; border:1px solid rgba(122,255,225,.72); border-radius:50%; background:rgba(3,12,14,.88); color:var(--accent); cursor:pointer; box-shadow:0 0 8px rgba(122,255,225,.22), inset 0 0 0 1px rgba(255,255,255,.04); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); transition:background .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .1s ease; touch-action:manipulation; pointer-events:auto; }
+.wave-phase-button { position:absolute; z-index:120; right:22%; bottom:22%; top:auto; width:24px; height:24px; min-width:24px; min-height:24px; padding:0; display:grid; place-items:center; border:1px solid rgba(122,255,225,.72); border-radius:50%; background:rgba(3,12,14,.94); color:var(--accent); cursor:pointer; box-shadow:0 0 8px rgba(122,255,225,.28), inset 0 0 0 1px rgba(255,255,255,.06); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); transition:background .14s ease,border-color .14s ease,color .14s ease,box-shadow .14s ease,transform .1s ease; touch-action:manipulation; pointer-events:auto; isolation:isolate; }
 .wave-phase-button:hover,.wave-phase-button:focus-visible { outline:none; border-color:rgba(122,255,225,.9); box-shadow:0 0 14px rgba(122,255,225,.30); }
 .wave-phase-button:active { transform:scale(.92); }
 .wave-phase-symbol { display:block; font-family:Georgia,"Times New Roman",serif; font-size:.82rem; font-style:italic; font-weight:700; line-height:1; transform:rotate(-13deg); transform-origin:center; text-shadow:0 0 5px currentColor; }
@@ -203,7 +203,7 @@ h2 { margin-bottom: 0; }
   .wave-anchor { width:78px; height:55px; padding:9px 10px; }
   .frequency-readout input { width:min(156px,48vw); font-size:clamp(1.8rem,10vw,3rem); }
   .manual-hint { width:90%; font-size:.54rem; }
-  .wave-phase-button { top:auto; right:8%; bottom:8%; width:22px; height:22px; min-width:22px; min-height:22px; z-index:50; }
+  .wave-phase-button { top:auto; right:21%; bottom:21%; width:22px; height:22px; min-width:22px; min-height:22px; z-index:120; }
   .wave-phase-symbol { font-size:.76rem; }
   .harmonic-controls { grid-template-columns:1fr 1fr; gap:18px; }
   .desktop-transport-slot { grid-column:1/-1; grid-row:2; width:min(260px,100%); justify-self:center; }
@@ -241,11 +241,15 @@ h2 { margin-bottom: 0; }
 
 /* Safety: phase control must never render in the frequency dial. */
 .frequency-dial .wave-phase-button { display:none !important; }
-.waveform-dial .wave-phase-button { display:grid; }
+.waveform-dial > .wave-phase-button { display:grid; }
 
 /* v8.3 — Φ forcé au premier plan du cadran Forme d’onde */
-.waveform-screen > .wave-phase-button { display:grid !important; visibility:visible !important; opacity:1 !important; }
+.waveform-dial > .wave-phase-button { display:grid !important; visibility:visible !important; opacity:1 !important; z-index:120 !important; }
 
+
+/* v8.5 — Φ déplacé hors du centre/canvas et placé au premier plan du cadran Forme d’onde */
+.waveform-screen { z-index:4; }
+.waveform-dial > .wave-phase-button { transform:translateZ(0); }
 
 /* v8.4 — mobile-first : commandes courantes visibles, secondaires sous OPTIONS */
 .mobile-options-toggle { display:none; }

@@ -1,4 +1,4 @@
-# Oscillostudio — v8.4
+# Oscillostudio — v8.5
 
 
 ## v8.2 — phase dans le cadran Forme d’onde
@@ -111,3 +111,8 @@ Puis **Settings → Pages → Deploy from a branch → main → /(root)**.
 - Fréquence, PLAY/STOP, forme d’onde, octaves, fondamentale et volume restent immédiatement accessibles.
 - Réglage fin, calibration, fréquences test et diagnostics sont regroupés derrière un bouton OPTIONS repliable.
 - Aucun doublon de contrôle : les mêmes éléments sont simplement affichés/masqués selon la largeur.
+
+## v8.5 — correction Φ
+- Le bouton Φ est désormais un enfant direct du cadran Forme d’onde, et non plus du cercle/canvas interne.
+- Il est forcé au-dessus de toutes les couches graphiques (z-index 120).
+- Aucun bouton Φ n’existe dans le cadran Fréquence.
