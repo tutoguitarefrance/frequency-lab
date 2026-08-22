@@ -505,7 +505,7 @@
 
   /* Fréquence : uniquement ce cadran. Sur tactile, rotation relative. */
   frequencyDial.addEventListener('pointerdown', (event) => {
-    if (event.target.closest('.frequency-readout') || event.target.closest('.freq-mark')) return;
+    if (event.target.closest('.frequency-readout') || event.target.closest('.freq-mark') || event.target.closest('.scope-phase-button')) return;
     event.preventDefault();
     frequencyDrag = {
       pointerId: event.pointerId,
@@ -654,9 +654,11 @@
 
   function updatePhaseUI() {
     const button = $('phaseInvert');
+    const degrees = state.phaseInverted ? '180°' : '0°';
     button.classList.toggle('is-active', state.phaseInverted);
     button.setAttribute('aria-pressed', String(state.phaseInverted));
-    $('phaseState').textContent = state.phaseInverted ? '180°' : '0°';
+    button.setAttribute('aria-label', `Inverser la phase, actuellement ${state.phaseInverted ? '180 degrés' : '0 degré'}`);
+    button.title = `Inversion de phase : ${degrees}`;
     drawWavePreview(0);
   }
 
@@ -680,7 +682,10 @@
     }
     setFundamentalEnabled(event.target.checked);
   });
-  $('phaseInvert').addEventListener('click', () => {
+  $('phaseInvert').addEventListener('pointerdown', (event) => event.stopPropagation());
+  $('phaseInvert').addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     state.phaseInverted = !state.phaseInverted;
     updatePhaseUI();
     syncEngine();

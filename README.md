@@ -1,4 +1,10 @@
-# Oscillostudio — v7.9
+# Oscillostudio — v8
+
+
+## v8 — consolidation
+- Base fonctionnelle reprise de la v7.11.
+- Numéro de version harmonisé dans l’interface, le README et les paramètres anti-cache GitHub Pages.
+- Aucun changement de logique audio par rapport à la v7.11 : cette version sert de nouvelle base stable pour la suite.
 
 Générateur de fréquences autonome en Web Audio API, conçu pour les tests audio et une intégration ultérieure comme module de Tinnitune.
 
@@ -67,3 +73,16 @@ Puis **Settings → Pages → Deploy from a branch → main → /(root)**.
 - Le bouton desktop est masqué dans cette disposition.
 - Aucun second STOP normal : PLAY devient STOP pendant l’émission.
 - Le seul autre arrêt est `STOP URGENCE`, fixé dans un coin pour une coupure immédiate.
+
+
+## v7.10 — STOP urgence compact
+- Le STOP d’urgence est réduit à un petit bouton carré dans le coin.
+- Seul le symbole ■ est affiché ; le libellé complet reste disponible pour les technologies d’assistance via `aria-label`.
+
+
+## v7.11 — inversion de phase dans l’oscilloscope
+- Le contrôle d’inversion de phase quitte la barre de réglages.
+- Il est intégré directement au cadran Fréquence / Oscilloscope.
+- Le bouton n’affiche que le symbole **Φ** incliné.
+- État normal : cyan ; phase inversée à 180° : orange.
+- Le bouton reste indépendant du geste de réglage de fréquence.
