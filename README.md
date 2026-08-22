@@ -1,4 +1,4 @@
-# Oscillostudio — v8.3.3
+# Oscillostudio — v8.4
 
 
 ## v8.2 — phase dans le cadran Forme d’onde
@@ -102,3 +102,12 @@ Puis **Settings → Pages → Deploy from a branch → main → /(root)**.
 - Correction du bouton Φ caché : couche z-index dédiée au premier plan.
 - Φ reste exclusivement dans le cercle intérieur du cadran Forme d’onde.
 - Position bas-droite, fond discret mais opaque pour rester lisible pendant le morphing.
+
+
+## v8.4 — interface mobile optimisée
+- Version ordinateur inchangée.
+- Sur mobile/tablette, suppression des titres et textes explicatifs au-dessus des deux cadrans.
+- En-tête compact.
+- Fréquence, PLAY/STOP, forme d’onde, octaves, fondamentale et volume restent immédiatement accessibles.
+- Réglage fin, calibration, fréquences test et diagnostics sont regroupés derrière un bouton OPTIONS repliable.
+- Aucun doublon de contrôle : les mêmes éléments sont simplement affichés/masqués selon la largeur.

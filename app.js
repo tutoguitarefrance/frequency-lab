@@ -723,6 +723,18 @@
     if (button) button.addEventListener('click', toggleTonePlayback);
   });
   $('panicStop').addEventListener('click', () => { engine.panic(); setPlayingUI(false); });
+
+  const mobileOptionsToggle = $('mobileOptionsToggle');
+  const mobileSecondaryOptions = $('mobileSecondaryOptions');
+  if (mobileOptionsToggle && mobileSecondaryOptions) {
+    mobileOptionsToggle.addEventListener('click', () => {
+      const open = !mobileSecondaryOptions.classList.contains('is-open');
+      mobileSecondaryOptions.classList.toggle('is-open', open);
+      mobileOptionsToggle.setAttribute('aria-expanded', String(open));
+      const label = mobileOptionsToggle.querySelector('span:last-child');
+      if (label) label.textContent = open ? 'FERMER OPTIONS' : 'OPTIONS';
+    });
+  }
   window.addEventListener('pagehide', () => engine.panic());
   document.addEventListener('visibilitychange', () => { if (document.hidden && engine.isPlaying) { engine.stop(); setPlayingUI(false); } });
 
