@@ -1,6 +1,6 @@
 # Frequency Lab
 
-Générateur de fréquences Web Audio autonome conçu pour tester l'accordeur NaturTune et servir ensuite de module intégrable dans Tinnitune.
+Générateur de fréquences Web Audio autonome conçu pour tester l'accordeur Oscillostudio et servir ensuite de module intégrable dans Tinnitune.
 
 ## Interface v2
 
@@ -10,7 +10,7 @@ Générateur de fréquences Web Audio autonome conçu pour tester l'accordeur Na
 - Richesse des sur-harmoniques par curseur vertical vers le haut.
 - Richesse des subharmoniques par curseur vertical vers le bas.
 - Fondamentale activable/désactivable.
-- Réglage fin ±100 cents pour tester NaturTune.
+- Réglage fin ±100 cents pour tester Oscillostudio.
 - Analyse du sample rate réel et coupure des composantes au-dessus de Nyquist pour éviter l'aliasing.
 
 ## Commandes de la molette
@@ -30,3 +30,10 @@ Déposer les fichiers à la racine d'un dépôt puis activer :
 Settings → Pages → Deploy from a branch → main → /(root)
 
 Aucune dépendance externe.
+
+
+## Version 3
+
+- Morphing continu entre sinusoïde, triangle, carrée et dent de scie en glissant sur la couronne.
+- Le réglage fin ±100 cents modifie réellement la fréquence émise et la valeur centrale suit le signal.
+- La valeur de fréquence reste centrée dans le cadran.

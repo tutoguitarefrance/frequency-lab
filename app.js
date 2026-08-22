@@ -4,10 +4,19 @@
   const $ = (id) => document.getElementById(id);
   const engine = new window.FrequencyGeneratorEngine({ requestedSampleRate: 96000 });
 
+  const WAVEFORMS = ['sine', 'triangle', 'square', 'sawtooth'];
+  const waveformNames = {
+    sine: 'SINUSOÏDE',
+    triangle: 'TRIANGLE',
+    square: 'CARRÉE',
+    sawtooth: 'DENT DE SCIE'
+  };
+
   const state = {
     baseFrequency: 440,
     cents: 0,
-    waveform: 'sine',
+    waveformMorph: 0,
+    waveformMix: { sine: 1, triangle: 0, square: 0, sawtooth: 0 },
     masterVolume: 0.25,
     autoNormalize: true,
     fundamentalEnabled: true,
@@ -16,28 +25,25 @@
     partials: []
   };
 
-  const waveformNames = {
-    sine: 'SINUSOÏDE',
-    triangle: 'TRIANGLE',
-    square: 'CARRÉE',
-    sawtooth: 'DENT DE SCIE'
-  };
-
   const knob = $('frequencyKnob');
+  const ring = $('waveformRing');
   const canvas = $('oscilloscope');
   const ctx = canvas.getContext('2d');
   let scopeFrame = null;
-  let dragStartY = 0;
-  let dragStartFrequency = 440;
   let dragging = false;
+  let morphDragging = false;
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
   }
 
-  function centsFrequency(base, cents) {
-    if (base <= 0) return 0;
-    return base * Math.pow(2, cents / 1200);
+  function centsFactor(cents = state.cents) {
+    return Math.pow(2, cents / 1200);
+  }
+
+  function effectiveFrequency() {
+    if (state.baseFrequency <= 0) return 0;
+    return Math.min(25000, state.baseFrequency * centsFactor());
   }
 
   function formatHz(value) {
@@ -70,9 +76,22 @@
     return Math.pow(25001, normalized) - 1;
   }
 
+  function morphMix(position) {
+    const wrapped = ((position % 4) + 4) % 4;
+    const index = Math.floor(wrapped);
+    const next = (index + 1) % 4;
+    const t = wrapped - index;
+    const mix = { sine: 0, triangle: 0, square: 0, sawtooth: 0 };
+    // Mélange linéaire : somme des gains = 1, donc le niveau reste stable.
+    mix[WAVEFORMS[index]] = 1 - t;
+    mix[WAVEFORMS[next]] = t;
+    return { mix, index, next, t, wrapped };
+  }
+
   function buildPartials() {
     const partials = [];
     if (state.fundamentalEnabled) {
+      // Sans propriété waveform : le moteur applique le morphing continu.
       partials.push({ id: 'fundamental', ratio: 1, level: 1, enabled: true });
     }
 
@@ -106,19 +125,29 @@
     engine.setState(state);
   }
 
+  function updateFineUI() {
+    $('centsSlider').value = String(state.cents);
+    $('centsOutput').textContent = `${state.cents > 0 ? '+' : ''}${state.cents} cent${Math.abs(state.cents) === 1 ? '' : 's'}`;
+  }
+
   function updateDial() {
-    const angle = frequencyToAngle(state.baseFrequency);
+    const actual = effectiveFrequency();
+    const angle = frequencyToAngle(actual);
     $('dialMarker').style.setProperty('--dial-angle', `${angle}deg`);
-    knob.setAttribute('aria-valuenow', String(state.baseFrequency));
-    knob.setAttribute('aria-valuetext', `${formatHz(state.baseFrequency)} hertz`);
-    if (document.activeElement !== $('frequencyInput')) $('frequencyInput').value = String(Number(state.baseFrequency.toFixed(3)));
+    knob.setAttribute('aria-valuenow', String(actual));
+    knob.setAttribute('aria-valuetext', `${formatHz(actual)} hertz`);
+    if (document.activeElement !== $('frequencyInput')) {
+      $('frequencyInput').value = String(Number(actual.toFixed(3)));
+    }
   }
 
   function updateDiagnostics() {
-    const effective = centsFrequency(state.baseFrequency, state.cents);
+    const effective = effectiveFrequency();
     $('effectiveFrequency').textContent = formatHz(effective);
     const note = nearestNote(effective);
-    $('noteHint').textContent = effective <= 0 ? 'DC • non audible' : `${note.name} • ${note.cents > 0 ? '+' : ''}${note.cents} cent${Math.abs(note.cents) === 1 ? '' : 's'}`;
+    $('noteHint').textContent = effective <= 0
+      ? 'DC • non audible'
+      : `${note.name} • ${note.cents > 0 ? '+' : ''}${note.cents} cent${Math.abs(note.cents) === 1 ? '' : 's'}`;
 
     const sr = engine.getSampleRate();
     const nyquist = engine.getNyquist();
@@ -135,26 +164,56 @@
     }
   }
 
-  function commitFrequency(value) {
-    state.baseFrequency = clamp(Number(value) || 0, 0, 25000);
+  // La molette principale définit une nouvelle fréquence exacte et remet le réglage fin à zéro.
+  // Ensuite le curseur ±100 cents décale réellement cette fréquence et l'affichage central suit.
+  function commitFrequency(value, resetFine = true) {
+    const target = clamp(Number(value) || 0, 0, 25000);
+    state.baseFrequency = target;
+    if (resetFine) {
+      state.cents = 0;
+      updateFineUI();
+    }
     updateDial();
     syncEngine();
     updateDiagnostics();
   }
 
-  function setWaveform(waveform) {
-    state.waveform = waveform;
-    $('waveformRing').dataset.waveform = waveform;
-    $('waveformLabel').textContent = waveformNames[waveform];
-    document.querySelectorAll('.wave-choice').forEach(btn => {
-      btn.classList.toggle('is-selected', btn.dataset.wave === waveform);
+  function updateWaveformUI() {
+    const data = morphMix(state.waveformMorph);
+    state.waveformMix = data.mix;
+    ring.style.setProperty('--wave-angle', `${data.wrapped * 90}deg`);
+
+    document.querySelectorAll('.wave-choice').forEach((btn, index) => {
+      const weight = data.mix[btn.dataset.wave] || 0;
+      btn.style.setProperty('--wave-weight', weight.toFixed(3));
+      btn.classList.toggle('is-active', weight > 0.015);
+      btn.classList.toggle('is-selected', weight > 0.985);
+      btn.setAttribute('aria-pressed', String(weight > 0.5));
     });
+
+    const a = WAVEFORMS[data.index];
+    const b = WAVEFORMS[data.next];
+    if (data.t < 0.015) {
+      $('waveformLabel').textContent = waveformNames[a];
+      ring.dataset.waveform = a;
+    } else if (data.t > 0.985) {
+      $('waveformLabel').textContent = waveformNames[b];
+      ring.dataset.waveform = b;
+    } else {
+      $('waveformLabel').textContent = `${waveformNames[a]} ↔ ${waveformNames[b]}  ${Math.round(data.t * 100)} %`;
+      ring.dataset.waveform = 'morph';
+    }
+  }
+
+  function setWaveformMorph(position) {
+    state.waveformMorph = ((Number(position) % 4) + 4) % 4;
+    updateWaveformUI();
     syncEngine();
   }
 
   function setPlayingUI(playing) {
     knob.classList.toggle('is-playing', playing);
-    $('waveformRing').classList.toggle('is-playing', playing);
+    ring.classList.toggle('is-playing', playing);
     $('toggleTone').classList.toggle('is-playing', playing);
     $('toggleTone').setAttribute('aria-pressed', String(playing));
     $('toggleTone').querySelector('.play-symbol').textContent = playing ? '■' : '▶';
@@ -167,9 +226,7 @@
   }
 
   function drawIdleScope() {
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
   function drawScope() {
@@ -228,24 +285,25 @@
     return angleToFrequency(angle);
   }
 
+  function pointerMorphFromPosition(event) {
+    const rect = ring.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let angle = Math.atan2(event.clientY - cy, event.clientX - cx) * 180 / Math.PI + 90;
+    if (angle < 0) angle += 360;
+    return angle / 90;
+  }
+
   knob.addEventListener('pointerdown', (event) => {
     if (event.target.closest('input')) return;
     dragging = true;
-    dragStartY = event.clientY;
-    dragStartFrequency = state.baseFrequency;
     knob.setPointerCapture(event.pointerId);
     commitFrequency(pointerFrequencyFromPosition(event));
   });
 
   knob.addEventListener('pointermove', (event) => {
     if (!dragging) return;
-    if (event.shiftKey) {
-      const delta = dragStartY - event.clientY;
-      const scale = Math.max(0.01, dragStartFrequency * 0.0025);
-      commitFrequency(dragStartFrequency + delta * scale);
-    } else {
-      commitFrequency(pointerFrequencyFromPosition(event));
-    }
+    commitFrequency(pointerFrequencyFromPosition(event));
   });
 
   knob.addEventListener('pointerup', (event) => {
@@ -253,21 +311,25 @@
     try { knob.releasePointerCapture(event.pointerId); } catch (_) {}
   });
 
+  knob.addEventListener('pointercancel', () => { dragging = false; });
+
   knob.addEventListener('wheel', (event) => {
     event.preventDefault();
+    const actual = effectiveFrequency();
     const direction = event.deltaY < 0 ? 1 : -1;
-    const step = event.shiftKey ? 0.1 : Math.max(1, state.baseFrequency * 0.002);
-    commitFrequency(state.baseFrequency + direction * step);
+    const step = event.shiftKey ? 0.1 : Math.max(1, actual * 0.002);
+    commitFrequency(actual + direction * step);
   }, { passive: false });
 
   knob.addEventListener('keydown', (event) => {
-    const step = event.shiftKey ? 0.1 : Math.max(1, state.baseFrequency * 0.002);
+    const actual = effectiveFrequency();
+    const step = event.shiftKey ? 0.1 : Math.max(1, actual * 0.002);
     if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
       event.preventDefault();
-      commitFrequency(state.baseFrequency + step);
+      commitFrequency(actual + step);
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
       event.preventDefault();
-      commitFrequency(state.baseFrequency - step);
+      commitFrequency(actual - step);
     } else if (event.key === 'Home') {
       event.preventDefault();
       commitFrequency(0);
@@ -277,13 +339,38 @@
     }
   });
 
-  $('frequencyInput').addEventListener('input', (event) => commitFrequency(event.target.value));
+  $('frequencyInput').addEventListener('change', (event) => commitFrequency(event.target.value));
+  $('frequencyInput').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+  });
   $('frequencyInput').addEventListener('click', (event) => event.stopPropagation());
   $('frequencyInput').addEventListener('pointerdown', (event) => event.stopPropagation());
 
-  document.querySelectorAll('.wave-choice').forEach(button => {
-    button.addEventListener('click', () => setWaveform(button.dataset.wave));
+  document.querySelectorAll('.wave-choice').forEach((button, index) => {
+    button.addEventListener('click', () => setWaveformMorph(index));
   });
+
+  ring.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('#frequencyKnob') || event.target.closest('.wave-choice')) return;
+    morphDragging = true;
+    ring.setPointerCapture(event.pointerId);
+    setWaveformMorph(pointerMorphFromPosition(event));
+  });
+
+  ring.addEventListener('pointermove', (event) => {
+    if (!morphDragging) return;
+    setWaveformMorph(pointerMorphFromPosition(event));
+  });
+
+  ring.addEventListener('pointerup', (event) => {
+    morphDragging = false;
+    try { ring.releasePointerCapture(event.pointerId); } catch (_) {}
+  });
+
+  ring.addEventListener('pointercancel', () => { morphDragging = false; });
 
   $('overRichness').addEventListener('input', (event) => {
     state.overRichness = Number(event.target.value);
@@ -305,7 +392,8 @@
 
   $('centsSlider').addEventListener('input', (event) => {
     state.cents = Number(event.target.value);
-    $('centsOutput').textContent = `${state.cents > 0 ? '+' : ''}${state.cents} cent${Math.abs(state.cents) === 1 ? '' : 's'}`;
+    updateFineUI();
+    updateDial();
     syncEngine();
     updateDiagnostics();
   });
@@ -350,6 +438,8 @@
     }
   });
 
+  updateFineUI();
+  updateWaveformUI();
   buildPartials();
   syncEngine();
   updateDial();

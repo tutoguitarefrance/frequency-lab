@@ -11,7 +11,7 @@
   <main class="app-shell">
     <header class="app-header">
       <div>
-        <p class="eyebrow">NaturTune • module de test audio</p>
+        <p class="eyebrow">Oscillostudio • module de test audio</p>
         <h1>Frequency Lab</h1>
         <p class="subtitle">Générateur 0–25 000 Hz • fréquence, forme d’onde et richesse harmonique.</p>
       </div>
@@ -38,6 +38,7 @@
       <div class="dial-column">
         <div id="waveformRing" class="waveform-ring" data-waveform="sine">
           <div class="metal-ring" aria-hidden="true"></div>
+          <div id="waveMorphMarker" class="wave-morph-marker" aria-hidden="true"></div>
 
           <button class="wave-choice wave-sine is-selected" type="button" data-wave="sine" aria-label="Sinusoïde" title="Sinusoïde">
             <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 13 C10 1, 18 1, 26 13 S42 25, 50 13 S58 1, 62 13"/></svg>
@@ -70,7 +71,7 @@
         </div>
 
         <div class="wave-labels" aria-live="polite">
-          <span>FORME D’ONDE</span>
+          <span>FORME D’ONDE • GLISSER SUR LA COURONNE</span>
           <strong id="waveformLabel">SINUSOÏDE</strong>
         </div>
 
@@ -106,7 +107,7 @@
 
       <div class="fine-control">
         <div class="control-label-row">
-          <label for="centsSlider">Réglage fin NaturTune</label>
+          <label for="centsSlider">Réglage fin Oscillostudio</label>
           <output id="centsOutput">0 cent</output>
         </div>
         <input id="centsSlider" class="range" type="range" min="-100" max="100" step="1" value="0" />

@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  const MORPH_WAVEFORMS = ['sine', 'triangle', 'square', 'sawtooth'];
+
   class FrequencyGeneratorEngine {
     constructor(options = {}) {
       this.requestedSampleRate = options.requestedSampleRate || 96000;
@@ -11,10 +13,10 @@
       this.isPlaying = false;
       this.baseFrequency = 440;
       this.cents = 0;
-      this.waveform = 'sine';
       this.masterVolume = 0.25;
       this.autoNormalize = true;
       this.partials = [];
+      this.waveformMix = { sine: 1, triangle: 0, square: 0, sawtooth: 0 };
     }
 
     async ensureContext() {
@@ -33,7 +35,7 @@
 
         this.analyser = this.context.createAnalyser();
         this.analyser.fftSize = 2048;
-        this.analyser.smoothingTimeConstant = 0.15;
+        this.analyser.smoothingTimeConstant = 0.12;
 
         this.masterGain.connect(this.analyser);
         this.analyser.connect(this.context.destination);
@@ -57,16 +59,22 @@
 
     getDetunedFundamental() {
       if (this.baseFrequency <= 0) return 0;
-      return this.baseFrequency * Math.pow(2, this.cents / 1200);
+      return Math.min(25000, this.baseFrequency * Math.pow(2, this.cents / 1200));
     }
 
-    setState({ baseFrequency, cents, waveform, masterVolume, autoNormalize, partials }) {
+    setState({ baseFrequency, cents, masterVolume, autoNormalize, partials, waveformMix }) {
       if (typeof baseFrequency === 'number') this.baseFrequency = Math.max(0, Math.min(25000, baseFrequency));
       if (typeof cents === 'number') this.cents = Math.max(-100, Math.min(100, cents));
-      if (waveform) this.waveform = waveform;
       if (typeof masterVolume === 'number') this.masterVolume = Math.max(0, Math.min(1, masterVolume));
       if (typeof autoNormalize === 'boolean') this.autoNormalize = autoNormalize;
       if (Array.isArray(partials)) this.partials = partials.map(p => ({ ...p }));
+      if (waveformMix && typeof waveformMix === 'object') {
+        const next = {};
+        MORPH_WAVEFORMS.forEach(wave => {
+          next[wave] = Math.max(0, Math.min(1, Number(waveformMix[wave]) || 0));
+        });
+        this.waveformMix = next;
+      }
       if (this.isPlaying) this.syncNodes();
     }
 
@@ -83,6 +91,25 @@
       if (!enabled.length || !this.autoNormalize) return 1;
       const sum = enabled.reduce((acc, p) => acc + p.level, 0);
       return sum > 1 ? 1 / sum : 1;
+    }
+
+    voicesForPartial(partial, factor) {
+      if (partial.waveform) {
+        return [{
+          id: partial.id,
+          waveform: partial.waveform,
+          gain: partial.level * factor
+        }];
+      }
+
+      // La fondamentale morphable garde les 4 oscillateurs actifs et synchronisés.
+      // Le changement de forme est un véritable mélange continu des signaux,
+      // et non un changement brutal de OscillatorNode.type.
+      return MORPH_WAVEFORMS.map(waveform => ({
+        id: `${partial.id}::${waveform}`,
+        waveform,
+        gain: partial.level * factor * (this.waveformMix[waveform] || 0)
+      }));
     }
 
     async start() {
@@ -134,38 +161,48 @@
         if (!partial.enabled || partial.level <= 0) continue;
         const freq = this.effectiveFrequencyForRatio(partial.ratio);
         if (freq === null || freq <= 0) continue;
-        wantedIds.add(partial.id);
 
-        let node = this.nodes.get(partial.id);
-        const desiredWaveform = partial.waveform || this.waveform;
-        if (!node || forceCreate) {
-          if (node) {
-            try { node.osc.stop(); } catch (_) {}
-            try { node.osc.disconnect(); } catch (_) {}
-            try { node.gain.disconnect(); } catch (_) {}
+        const voices = this.voicesForPartial(partial, factor);
+        for (const voice of voices) {
+          wantedIds.add(voice.id);
+          let node = this.nodes.get(voice.id);
+
+          if (!node || forceCreate) {
+            if (node) {
+              try { node.osc.stop(); } catch (_) {}
+              try { node.osc.disconnect(); } catch (_) {}
+              try { node.gain.disconnect(); } catch (_) {}
+            }
+
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+            osc.type = voice.waveform;
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(forceCreate ? voice.gain : 0, now);
+            if (!forceCreate) gain.gain.setTargetAtTime(voice.gain, now, 0.012);
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start(now);
+            node = { osc, gain, waveform: voice.waveform };
+            this.nodes.set(voice.id, node);
+          } else {
+            node.osc.frequency.setTargetAtTime(freq, now, 0.006);
+            node.gain.gain.setTargetAtTime(voice.gain, now, 0.014);
           }
-          const osc = this.context.createOscillator();
-          const gain = this.context.createGain();
-          osc.type = desiredWaveform;
-          osc.frequency.setValueAtTime(freq, now);
-          gain.gain.setValueAtTime(partial.level * factor, now);
-          osc.connect(gain);
-          gain.connect(this.masterGain);
-          osc.start();
-          node = { osc, gain };
-          this.nodes.set(partial.id, node);
-        } else {
-          node.osc.type = desiredWaveform;
-          node.osc.frequency.setTargetAtTime(freq, now, 0.006);
-          node.gain.gain.setTargetAtTime(partial.level * factor, now, 0.006);
         }
       }
 
       for (const [id, node] of this.nodes.entries()) {
         if (!wantedIds.has(id)) {
-          try { node.osc.stop(now + 0.01); } catch (_) {}
-          try { node.osc.disconnect(); } catch (_) {}
-          try { node.gain.disconnect(); } catch (_) {}
+          try {
+            node.gain.gain.cancelScheduledValues(now);
+            node.gain.gain.setTargetAtTime(0, now, 0.006);
+            node.osc.stop(now + 0.035);
+          } catch (_) {}
+          window.setTimeout(() => {
+            try { node.osc.disconnect(); } catch (_) {}
+            try { node.gain.disconnect(); } catch (_) {}
+          }, 45);
           this.nodes.delete(id);
         }
       }
