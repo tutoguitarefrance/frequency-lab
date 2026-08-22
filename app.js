@@ -2,7 +2,6 @@
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-
   const engine = new window.FrequencyGeneratorEngine({ requestedSampleRate: 96000 });
 
   const state = {
@@ -11,16 +10,34 @@
     waveform: 'sine',
     masterVolume: 0.25,
     autoNormalize: true,
-    partials: [
-      { id: 'fundamental', label: 'Fondamentale', ratio: 1, level: 1, enabled: true, locked: true }
-    ]
+    fundamentalEnabled: true,
+    overRichness: 0,
+    subRichness: 0,
+    partials: []
   };
 
-  let nextOvertone = 2;
-  let nextSubharmonic = 2;
+  const waveformNames = {
+    sine: 'SINUSOÏDE',
+    triangle: 'TRIANGLE',
+    square: 'CARRÉE',
+    sawtooth: 'DENT DE SCIE'
+  };
+
+  const knob = $('frequencyKnob');
+  const canvas = $('oscilloscope');
+  const ctx = canvas.getContext('2d');
+  let scopeFrame = null;
+  let dragStartY = 0;
+  let dragStartFrequency = 440;
+  let dragging = false;
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  function centsFrequency(base, cents) {
+    if (base <= 0) return 0;
+    return base * Math.pow(2, cents / 1200);
   }
 
   function formatHz(value) {
@@ -28,19 +45,6 @@
     if (value >= 10000) return value.toFixed(1);
     if (value >= 1000) return value.toFixed(2);
     return value.toFixed(3);
-  }
-
-  function formatRatio(ratio) {
-    if (ratio === 1) return '1×';
-    if (ratio > 1) return `${ratio.toFixed(Number.isInteger(ratio) ? 0 : 3)}×`;
-    const inv = 1 / ratio;
-    if (Math.abs(inv - Math.round(inv)) < 1e-8) return `1/${Math.round(inv)}`;
-    return ratio.toFixed(4) + '×';
-  }
-
-  function centsFrequency(base, cents) {
-    if (base <= 0) return 0;
-    return base * Math.pow(2, cents / 1200);
   }
 
   function nearestNote(freq) {
@@ -54,18 +58,67 @@
     return { name: `${note}${octave}`, cents };
   }
 
+  function frequencyToAngle(freq) {
+    if (freq <= 0) return -135;
+    const normalized = Math.log10(1 + freq) / Math.log10(25001);
+    return -135 + normalized * 270;
+  }
+
+  function angleToFrequency(angle) {
+    const normalized = clamp((angle + 135) / 270, 0, 1);
+    if (normalized <= 0.002) return 0;
+    return Math.pow(25001, normalized) - 1;
+  }
+
+  function buildPartials() {
+    const partials = [];
+    if (state.fundamentalEnabled) {
+      partials.push({ id: 'fundamental', ratio: 1, level: 1, enabled: true });
+    }
+
+    const over = state.overRichness / 100;
+    const overCount = over === 0 ? 0 : Math.max(1, Math.ceil(over * 9));
+    for (let i = 0; i < overCount; i += 1) {
+      const n = i + 2;
+      const threshold = i / 9;
+      const activation = clamp((over - threshold) * 9, 0, 1);
+      const level = activation * over * (0.34 / Math.pow(n - 1, 0.68));
+      partials.push({ id: `over-${n}`, ratio: n, level, enabled: level > 0.0005, waveform: 'sine' });
+    }
+
+    const sub = state.subRichness / 100;
+    const subCount = sub === 0 ? 0 : Math.max(1, Math.ceil(sub * 5));
+    for (let i = 0; i < subCount; i += 1) {
+      const n = i + 2;
+      const threshold = i / 5;
+      const activation = clamp((sub - threshold) * 5, 0, 1);
+      const level = activation * sub * (0.22 / Math.pow(n - 1, 0.55));
+      partials.push({ id: `sub-${n}`, ratio: 1 / n, level, enabled: level > 0.0005, waveform: 'sine' });
+    }
+
+    state.partials = partials;
+    $('overCount').textContent = String(partials.filter(p => p.id.startsWith('over-') && p.enabled).length);
+    $('subCount').textContent = String(partials.filter(p => p.id.startsWith('sub-') && p.enabled).length);
+  }
+
   function syncEngine() {
+    buildPartials();
     engine.setState(state);
   }
 
-  function updateDiagnostics() {
-    const detuned = centsFrequency(state.baseFrequency, state.cents);
-    $('requestedFrequency').textContent = formatHz(state.baseFrequency);
-    $('detunedFrequency').textContent = formatHz(detuned);
-    $('effectiveFrequency').textContent = formatHz(detuned);
+  function updateDial() {
+    const angle = frequencyToAngle(state.baseFrequency);
+    $('dialMarker').style.setProperty('--dial-angle', `${angle}deg`);
+    knob.setAttribute('aria-valuenow', String(state.baseFrequency));
+    knob.setAttribute('aria-valuetext', `${formatHz(state.baseFrequency)} hertz`);
+    if (document.activeElement !== $('frequencyInput')) $('frequencyInput').value = String(Number(state.baseFrequency.toFixed(3)));
+  }
 
-    const note = nearestNote(detuned);
-    $('noteHint').textContent = detuned <= 0 ? 'DC • non audible' : `${note.name} • ${note.cents > 0 ? '+' : ''}${note.cents} cent${Math.abs(note.cents) === 1 ? '' : 's'}`;
+  function updateDiagnostics() {
+    const effective = centsFrequency(state.baseFrequency, state.cents);
+    $('effectiveFrequency').textContent = formatHz(effective);
+    const note = nearestNote(effective);
+    $('noteHint').textContent = effective <= 0 ? 'DC • non audible' : `${note.name} • ${note.cents > 0 ? '+' : ''}${note.cents} cent${Math.abs(note.cents) === 1 ? '' : 's'}`;
 
     const sr = engine.getSampleRate();
     const nyquist = engine.getNyquist();
@@ -74,179 +127,197 @@
     $('sampleRateStatus').textContent = sr ? `Sample rate : ${sr.toLocaleString('fr-FR')} Hz` : 'Sample rate : —';
 
     if (nyquist) {
-      $('nyquistInfo').textContent = `AudioContext actif à ${sr.toLocaleString('fr-FR')} Hz : fréquences représentables jusqu’à ${nyquist.toLocaleString('fr-FR')} Hz avant Nyquist. Les composantes au-dessus sont automatiquement coupées pour éviter l’aliasing.`;
+      const exceeds = effective >= nyquist;
+      $('nyquistWarning').textContent = exceeds
+        ? `⚠ ${formatHz(effective)} Hz dépasse Nyquist (${nyquist.toLocaleString('fr-FR')} Hz) : le signal est coupé pour éviter l’aliasing.`
+        : `Limite numérique actuelle : ${nyquist.toLocaleString('fr-FR')} Hz. Les harmoniques qui la dépassent sont automatiquement coupées.`;
+      $('nyquistWarning').classList.toggle('is-warning', exceeds);
     }
   }
 
-  function updateNormalizationInfo() {
-    const active = state.partials.filter(p => p.enabled && p.level > 0);
-    const sum = active.reduce((acc, p) => acc + p.level, 0);
-    const factor = state.autoNormalize && sum > 1 ? 1 / sum : 1;
-    $('normalizationInfo').textContent = `Normalisation : ${(factor * 100).toFixed(1)} % • somme des niveaux : ${(sum * 100).toFixed(0)} %`;
-  }
-
-  function renderPartials() {
-    const body = $('partialsBody');
-    body.innerHTML = '';
-    const detuned = centsFrequency(state.baseFrequency, state.cents);
-    const nyquist = engine.getNyquist();
-
-    for (const partial of state.partials) {
-      const tr = document.createElement('tr');
-      const componentFreq = detuned * partial.ratio;
-      const aboveNyquist = nyquist && componentFreq >= nyquist;
-
-      tr.innerHTML = `
-        <td><input class="partial-enabled" type="checkbox" ${partial.enabled ? 'checked' : ''} aria-label="Activer ${partial.label}"></td>
-        <td><strong>${partial.label}</strong></td>
-        <td><span>${formatRatio(partial.ratio)}</span></td>
-        <td class="frequency-cell">${formatHz(componentFreq)} Hz${aboveNyquist ? ' <span title="Au-dessus de Nyquist">⚠</span>' : ''}</td>
-        <td>
-          <div class="slider-with-value">
-            <input class="partial-level range" type="range" min="0" max="100" step="1" value="${Math.round(partial.level * 100)}" aria-label="Niveau ${partial.label}">
-            <output>${Math.round(partial.level * 100)} %</output>
-          </div>
-        </td>
-        <td>${partial.locked ? '' : '<button class="remove-partial" type="button">Supprimer</button>'}</td>
-      `;
-
-      tr.querySelector('.partial-enabled').addEventListener('change', (e) => {
-        partial.enabled = e.target.checked;
-        syncEngine();
-        updateNormalizationInfo();
-      });
-
-      const level = tr.querySelector('.partial-level');
-      const levelOut = level.nextElementSibling;
-      level.addEventListener('input', (e) => {
-        partial.level = Number(e.target.value) / 100;
-        levelOut.textContent = `${e.target.value} %`;
-        syncEngine();
-        updateNormalizationInfo();
-      });
-
-      const remove = tr.querySelector('.remove-partial');
-      if (remove) {
-        remove.addEventListener('click', () => {
-          state.partials = state.partials.filter(p => p.id !== partial.id);
-          syncEngine();
-          renderPartials();
-        });
-      }
-
-      body.appendChild(tr);
-    }
-
-    updateNormalizationInfo();
-  }
-
-  function updateFrequencyUI(source) {
-    state.baseFrequency = clamp(Number(state.baseFrequency) || 0, 0, 25000);
-    if (source !== 'number') $('frequencyInput').value = state.baseFrequency;
-    if (source !== 'slider') $('frequencySlider').value = state.baseFrequency;
+  function commitFrequency(value) {
+    state.baseFrequency = clamp(Number(value) || 0, 0, 25000);
+    updateDial();
     syncEngine();
     updateDiagnostics();
-    renderPartials();
   }
 
-  function updateCentsUI(source) {
-    state.cents = clamp(Number(state.cents) || 0, -100, 100);
-    if (source !== 'number') $('centsInput').value = state.cents;
-    if (source !== 'slider') $('centsSlider').value = state.cents;
+  function setWaveform(waveform) {
+    state.waveform = waveform;
+    $('waveformRing').dataset.waveform = waveform;
+    $('waveformLabel').textContent = waveformNames[waveform];
+    document.querySelectorAll('.wave-choice').forEach(btn => {
+      btn.classList.toggle('is-selected', btn.dataset.wave === waveform);
+    });
     syncEngine();
-    updateDiagnostics();
-    renderPartials();
   }
 
   function setPlayingUI(playing) {
-    const button = $('toggleTone');
-    button.classList.toggle('is-playing', playing);
-    button.setAttribute('aria-pressed', String(playing));
-    button.querySelector('.tone-icon').textContent = playing ? '■' : '▶';
-    $('toneButtonLabel').textContent = playing ? 'Arrêter le son' : 'Émettre le son';
+    knob.classList.toggle('is-playing', playing);
+    $('waveformRing').classList.toggle('is-playing', playing);
+    $('toggleTone').classList.toggle('is-playing', playing);
+    $('toggleTone').setAttribute('aria-pressed', String(playing));
+    $('toggleTone').querySelector('.play-symbol').textContent = playing ? '■' : '▶';
+    $('toneButtonLabel').textContent = playing ? 'PAUSE' : 'PLAY';
+    $('scopeState').textContent = playing ? 'OSCILLOSCOPE' : 'FRÉQUENCE';
     $('audioStatus').textContent = playing ? 'Audio actif' : 'Audio arrêté';
     $('audioStatus').classList.toggle('status-on', playing);
     $('audioStatus').classList.toggle('status-off', !playing);
+    if (playing) startScope(); else stopScope();
   }
 
-  $('frequencyInput').addEventListener('input', (e) => {
-    state.baseFrequency = Number(e.target.value);
-    updateFrequencyUI('number');
+  function drawIdleScope() {
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+  }
+
+  function drawScope() {
+    const analyser = engine.getAnalyser();
+    if (!engine.isPlaying || !analyser) return;
+
+    const data = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(data);
+
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const gradient = ctx.createLinearGradient(0, 0, w, 0);
+    gradient.addColorStop(0, 'rgba(116,255,224,.35)');
+    gradient.addColorStop(0.5, 'rgba(164,255,236,1)');
+    gradient.addColorStop(1, 'rgba(116,255,224,.35)');
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 4;
+    ctx.shadowColor = 'rgba(119,255,226,.75)';
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+
+    const targetSamples = 420;
+    const step = Math.max(1, Math.floor(data.length / targetSamples));
+    let x = 0;
+    const xStep = w / Math.ceil(data.length / step);
+    for (let i = 0; i < data.length; i += step) {
+      const y = h / 2 + data[i] * h * 0.36;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      x += xStep;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    scopeFrame = requestAnimationFrame(drawScope);
+  }
+
+  function startScope() {
+    cancelAnimationFrame(scopeFrame);
+    scopeFrame = requestAnimationFrame(drawScope);
+  }
+
+  function stopScope() {
+    cancelAnimationFrame(scopeFrame);
+    scopeFrame = null;
+    drawIdleScope();
+  }
+
+  function pointerFrequencyFromPosition(event) {
+    const rect = knob.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    let angle = Math.atan2(event.clientY - cy, event.clientX - cx) * 180 / Math.PI + 90;
+    if (angle > 180) angle -= 360;
+    angle = clamp(angle, -135, 135);
+    return angleToFrequency(angle);
+  }
+
+  knob.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('input')) return;
+    dragging = true;
+    dragStartY = event.clientY;
+    dragStartFrequency = state.baseFrequency;
+    knob.setPointerCapture(event.pointerId);
+    commitFrequency(pointerFrequencyFromPosition(event));
   });
 
-  $('frequencySlider').addEventListener('input', (e) => {
-    state.baseFrequency = Number(e.target.value);
-    updateFrequencyUI('slider');
+  knob.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    if (event.shiftKey) {
+      const delta = dragStartY - event.clientY;
+      const scale = Math.max(0.01, dragStartFrequency * 0.0025);
+      commitFrequency(dragStartFrequency + delta * scale);
+    } else {
+      commitFrequency(pointerFrequencyFromPosition(event));
+    }
   });
 
-  $('centsInput').addEventListener('input', (e) => {
-    state.cents = Number(e.target.value);
-    updateCentsUI('number');
+  knob.addEventListener('pointerup', (event) => {
+    dragging = false;
+    try { knob.releasePointerCapture(event.pointerId); } catch (_) {}
   });
 
-  $('centsSlider').addEventListener('input', (e) => {
-    state.cents = Number(e.target.value);
-    updateCentsUI('slider');
+  knob.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    const direction = event.deltaY < 0 ? 1 : -1;
+    const step = event.shiftKey ? 0.1 : Math.max(1, state.baseFrequency * 0.002);
+    commitFrequency(state.baseFrequency + direction * step);
+  }, { passive: false });
+
+  knob.addEventListener('keydown', (event) => {
+    const step = event.shiftKey ? 0.1 : Math.max(1, state.baseFrequency * 0.002);
+    if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      commitFrequency(state.baseFrequency + step);
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      commitFrequency(state.baseFrequency - step);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      commitFrequency(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      commitFrequency(25000);
+    }
   });
 
-  $('waveform').addEventListener('change', (e) => {
-    state.waveform = e.target.value;
+  $('frequencyInput').addEventListener('input', (event) => commitFrequency(event.target.value));
+  $('frequencyInput').addEventListener('click', (event) => event.stopPropagation());
+  $('frequencyInput').addEventListener('pointerdown', (event) => event.stopPropagation());
+
+  document.querySelectorAll('.wave-choice').forEach(button => {
+    button.addEventListener('click', () => setWaveform(button.dataset.wave));
+  });
+
+  $('overRichness').addEventListener('input', (event) => {
+    state.overRichness = Number(event.target.value);
+    $('overRichnessValue').textContent = event.target.value;
     syncEngine();
   });
 
-  $('masterVolume').addEventListener('input', (e) => {
-    state.masterVolume = Number(e.target.value) / 100;
-    $('masterVolumeValue').textContent = `${e.target.value} %`;
+  $('subRichness').addEventListener('input', (event) => {
+    state.subRichness = Number(event.target.value);
+    $('subRichnessValue').textContent = event.target.value;
     syncEngine();
   });
 
-  $('autoNormalize').addEventListener('change', (e) => {
-    state.autoNormalize = e.target.checked;
+  $('fundamentalEnabled').addEventListener('change', (event) => {
+    state.fundamentalEnabled = event.target.checked;
+    $('fundamentalState').textContent = state.fundamentalEnabled ? 'active' : 'coupée';
     syncEngine();
-    updateNormalizationInfo();
+  });
+
+  $('centsSlider').addEventListener('input', (event) => {
+    state.cents = Number(event.target.value);
+    $('centsOutput').textContent = `${state.cents > 0 ? '+' : ''}${state.cents} cent${Math.abs(state.cents) === 1 ? '' : 's'}`;
+    syncEngine();
+    updateDiagnostics();
+  });
+
+  $('masterVolume').addEventListener('input', (event) => {
+    state.masterVolume = Number(event.target.value) / 100;
+    $('masterVolumeValue').textContent = `${event.target.value} %`;
+    syncEngine();
   });
 
   document.querySelectorAll('[data-frequency]').forEach(button => {
-    button.addEventListener('click', () => {
-      state.baseFrequency = Number(button.dataset.frequency);
-      updateFrequencyUI();
-    });
-  });
-
-  $('addOvertone').addEventListener('click', () => {
-    const n = nextOvertone++;
-    state.partials.push({
-      id: `over-${Date.now()}-${n}`,
-      label: `Sur-harmonique ${n}`,
-      ratio: n,
-      level: Math.max(0.05, 0.5 / n),
-      enabled: true,
-      locked: false
-    });
-    syncEngine();
-    renderPartials();
-  });
-
-  $('addSubharmonic').addEventListener('click', () => {
-    const n = nextSubharmonic++;
-    state.partials.push({
-      id: `sub-${Date.now()}-${n}`,
-      label: `Sub-harmonique 1/${n}`,
-      ratio: 1 / n,
-      level: 0.25,
-      enabled: true,
-      locked: false
-    });
-    syncEngine();
-    renderPartials();
-  });
-
-  $('resetPartials').addEventListener('click', () => {
-    state.partials = [{ id: 'fundamental', label: 'Fondamentale', ratio: 1, level: 1, enabled: true, locked: true }];
-    nextOvertone = 2;
-    nextSubharmonic = 2;
-    syncEngine();
-    renderPartials();
+    button.addEventListener('click', () => commitFrequency(Number(button.dataset.frequency)));
   });
 
   $('toggleTone').addEventListener('click', async () => {
@@ -260,7 +331,6 @@
         setPlayingUI(true);
       }
       updateDiagnostics();
-      renderPartials();
     } catch (err) {
       setPlayingUI(false);
       alert(`Impossible de démarrer l’audio : ${err.message}`);
@@ -280,7 +350,9 @@
     }
   });
 
+  buildPartials();
   syncEngine();
+  updateDial();
   updateDiagnostics();
-  renderPartials();
+  drawIdleScope();
 })();

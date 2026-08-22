@@ -1,72 +1,32 @@
 # Frequency Lab
 
-Générateur de fréquences autonome conçu pour :
+Générateur de fréquences Web Audio autonome conçu pour tester l'accordeur NaturTune et servir ensuite de module intégrable dans Tinnitune.
 
-- tester l'accordeur **NaturTune** ;
-- servir plus tard de module audio dans **Tinnitune** ;
-- fonctionner directement dans un navigateur mobile ou desktop via **GitHub Pages**.
+## Interface v2
 
-## Fonctions
+- Molette circulaire de fréquence 0–25 000 Hz.
+- La molette devient un oscilloscope en lecture tout en restant réglable au toucher.
+- Couronne métallique de sélection de forme d'onde : sinusoïde, triangle, carrée, dent de scie.
+- Richesse des sur-harmoniques par curseur vertical vers le haut.
+- Richesse des subharmoniques par curseur vertical vers le bas.
+- Fondamentale activable/désactivable.
+- Réglage fin ±100 cents pour tester NaturTune.
+- Analyse du sample rate réel et coupure des composantes au-dessus de Nyquist pour éviter l'aliasing.
 
-- fréquence de 0 à 25 000 Hz ;
-- réglage fin de -100 à +100 cents ;
-- sinusoïde, triangle, carrée et dent de scie ;
-- ajout de sur-harmoniques ;
-- ajout de sub-harmoniques ;
-- niveau indépendant de chaque composante ;
-- normalisation du mélange ;
-- affichage du sample rate réel et de la limite de Nyquist ;
-- coupure des composantes qui dépassent Nyquist pour éviter un faux signal par aliasing ;
-- interface responsive pour smartphone.
+## Commandes de la molette
 
-## Publication sur GitHub Pages
+- Toucher / cliquer autour de la molette : changement direct de fréquence.
+- Glisser autour du cadran : réglage continu.
+- Molette de souris : réglage fin relatif.
+- Shift + molette : réglage très fin.
+- Saisie numérique centrale : valeur exacte en Hz.
 
-### Méthode simple depuis github.com
+La loi de la molette est logarithmique afin de conserver une bonne précision dans les fréquences musicales tout en couvrant 0–25 kHz.
 
-1. Créer un nouveau dépôt GitHub, par exemple `frequency-lab`.
-2. Déposer **tout le contenu de ce dossier à la racine du dépôt** :
-   - `index.html`
-   - `styles.css`
-   - `app.js`
-   - `audio-engine.js`
-   - `.nojekyll`
-   - `README.md`
-3. Ouvrir **Settings > Pages** dans le dépôt.
-4. Dans **Build and deployment**, choisir **Deploy from a branch**.
-5. Choisir la branche **main** et le dossier **/(root)**.
-6. Enregistrer.
+## GitHub Pages
 
-L'application sera ensuite accessible à une adresse du type :
+Déposer les fichiers à la racine d'un dépôt puis activer :
 
-`https://UTILISATEUR.github.io/frequency-lab/`
+Settings → Pages → Deploy from a branch → main → /(root)
 
-## Test sur smartphone
-
-Ouvrir l'adresse GitHub Pages dans Firefox, Chrome ou Safari puis toucher **Émettre le son**. Le premier démarrage audio doit être déclenché par une action de l'utilisateur : c'est une contrainte normale des navigateurs mobiles.
-
-Pour tester NaturTune, commencer avec une sinusoïde à 440 Hz et utiliser le réglage en cents :
-
-- -50 cents
-- -25 cents
-- -10 cents
-- 0 cent
-- +10 cents
-- +25 cents
-- +50 cents
-
-## Limites physiques
-
-L'interface accepte jusqu'à 25 000 Hz, mais la sortie réelle dépend du sample rate accordé par le navigateur, du DAC, de l'amplificateur et du haut-parleur du téléphone.
-
-Le moteur demande un AudioContext à 96 kHz lorsque le navigateur l'accepte. Si le contexte reste à 48 kHz, la limite de Nyquist est 24 kHz : une composante de 25 kHz est alors volontairement coupée plutôt que reproduite sous une fréquence erronée.
-
-0 Hz correspond à une composante continue et non à une fréquence audible.
-
-## Architecture
-
-- `audio-engine.js` : moteur audio réutilisable dans Tinnitune ;
-- `app.js` : logique de l'interface de test ;
-- `styles.css` : présentation responsive ;
-- `index.html` : interface.
-
-Le moteur audio est volontairement séparé de l'interface afin de pouvoir être repris plus tard dans Tinnitune.
+Aucune dépendance externe.

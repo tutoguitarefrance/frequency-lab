@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111827" />
+  <meta name="theme-color" content="#090c11" />
   <title>Frequency Lab — générateur de fréquences</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -11,9 +11,9 @@
   <main class="app-shell">
     <header class="app-header">
       <div>
-        <p class="eyebrow">Module de test audio</p>
+        <p class="eyebrow">NaturTune • module de test audio</p>
         <h1>Frequency Lab</h1>
-        <p class="subtitle">Générateur 0–25 000 Hz pour tester NaturTune et préparer l’intégration dans Tinnitune.</p>
+        <p class="subtitle">Générateur 0–25 000 Hz • fréquence, forme d’onde et richesse harmonique.</p>
       </div>
       <div class="status-cluster">
         <span id="audioStatus" class="status-pill status-off">Audio arrêté</span>
@@ -21,133 +21,135 @@
       </div>
     </header>
 
-    <section class="hero-panel card">
-      <div class="play-area">
-        <button id="toggleTone" class="tone-button" type="button" aria-pressed="false">
-          <span class="tone-icon">▶</span>
-          <span id="toneButtonLabel">Émettre le son</span>
-        </button>
-        <button id="panicStop" class="secondary-button" type="button">Stop immédiat</button>
-      </div>
-
-      <div class="readout" aria-live="polite">
-        <span class="readout-label">Fréquence effective</span>
-        <strong><span id="effectiveFrequency">440.000</span> Hz</strong>
-        <span id="noteHint" class="readout-note">A4 • 0 cent</span>
-      </div>
-    </section>
-
-    <section class="grid-2">
-      <section class="card">
-        <h2>Fréquence</h2>
-
-        <label class="field-label" for="frequencyInput">Fréquence de base</label>
-        <div class="input-with-unit">
-          <input id="frequencyInput" type="number" min="0" max="25000" step="0.001" value="440" inputmode="decimal" />
-          <span>Hz</span>
+    <section class="synth-panel card">
+      <div class="richness richness-over" aria-label="Richesse des sur-harmoniques">
+        <div class="richness-copy">
+          <span class="richness-title">SUR</span>
+          <strong><span id="overRichnessValue">0</span>%</strong>
+          <span class="richness-subtitle">harmoniques</span>
         </div>
-        <input id="frequencySlider" class="range" type="range" min="0" max="25000" step="1" value="440" />
-        <div class="range-scale"><span>0 Hz</span><span>25 000 Hz</span></div>
+        <div class="vertical-slider vertical-slider-up">
+          <span class="richness-limit">+</span>
+          <input id="overRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse sur-harmoniques" />
+          <span class="richness-zero">0</span>
+        </div>
+      </div>
 
-        <label class="field-label" for="centsSlider">Réglage fin pour tester l’accordeur</label>
-        <div class="cents-row">
-          <input id="centsSlider" class="range" type="range" min="-100" max="100" step="1" value="0" />
-          <div class="input-with-unit compact">
-            <input id="centsInput" type="number" min="-100" max="100" step="1" value="0" />
-            <span>cent</span>
+      <div class="dial-column">
+        <div id="waveformRing" class="waveform-ring" data-waveform="sine">
+          <div class="metal-ring" aria-hidden="true"></div>
+
+          <button class="wave-choice wave-sine is-selected" type="button" data-wave="sine" aria-label="Sinusoïde" title="Sinusoïde">
+            <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 13 C10 1, 18 1, 26 13 S42 25, 50 13 S58 1, 62 13"/></svg>
+          </button>
+          <button class="wave-choice wave-triangle" type="button" data-wave="triangle" aria-label="Triangle" title="Triangle">
+            <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 22 L17 4 L32 22 L47 4 L62 22"/></svg>
+          </button>
+          <button class="wave-choice wave-square" type="button" data-wave="square" aria-label="Carrée" title="Carrée">
+            <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 21 L2 5 L17 5 L17 21 L32 21 L32 5 L47 5 L47 21 L62 21"/></svg>
+          </button>
+          <button class="wave-choice wave-sawtooth" type="button" data-wave="sawtooth" aria-label="Dent de scie" title="Dent de scie">
+            <svg viewBox="0 0 64 26" aria-hidden="true"><path d="M2 22 L17 4 L17 22 L32 4 L32 22 L47 4 L47 22 L62 4"/></svg>
+          </button>
+
+          <div id="frequencyKnob" class="frequency-knob" role="slider" tabindex="0" aria-label="Fréquence" aria-valuemin="0" aria-valuemax="25000" aria-valuenow="440">
+            <div class="knob-face">
+              <div id="dialMarker" class="dial-marker" aria-hidden="true"></div>
+              <canvas id="oscilloscope" width="520" height="520" aria-label="Oscilloscope"></canvas>
+              <div class="scope-grid" aria-hidden="true"></div>
+              <div class="knob-readout">
+                <span id="scopeState" class="scope-state">FRÉQUENCE</span>
+                <div class="frequency-edit-row">
+                  <input id="frequencyInput" type="number" min="0" max="25000" step="0.001" value="440" inputmode="decimal" aria-label="Fréquence en hertz" />
+                  <span>Hz</span>
+                </div>
+                <span id="noteHint" class="note-hint">A4 • 0 cent</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="range-scale"><span>−100</span><span>0</span><span>+100</span></div>
 
-        <div class="preset-row" aria-label="Fréquences prédéfinies">
-          <button class="chip" data-frequency="55">55</button>
-          <button class="chip" data-frequency="110">110</button>
-          <button class="chip" data-frequency="220">220</button>
-          <button class="chip" data-frequency="440">440</button>
-          <button class="chip" data-frequency="880">880</button>
-          <button class="chip" data-frequency="1000">1 k</button>
-          <button class="chip" data-frequency="10000">10 k</button>
-          <button class="chip" data-frequency="20000">20 k</button>
-          <button class="chip" data-frequency="25000">25 k</button>
+        <div class="wave-labels" aria-live="polite">
+          <span>FORME D’ONDE</span>
+          <strong id="waveformLabel">SINUSOÏDE</strong>
         </div>
-      </section>
 
-      <section class="card">
-        <h2>Forme d’onde & niveau</h2>
-        <label class="field-label" for="waveform">Forme d’onde</label>
-        <select id="waveform">
-          <option value="sine" selected>Sinusoïde — idéal accordeur</option>
-          <option value="triangle">Triangle</option>
-          <option value="square">Carrée</option>
-          <option value="sawtooth">Dent de scie</option>
-        </select>
+        <div class="transport-row">
+          <button id="toggleTone" class="play-button" type="button" aria-pressed="false">
+            <span class="play-symbol">▶</span>
+            <span id="toneButtonLabel">PLAY</span>
+          </button>
+          <button id="panicStop" class="stop-button" type="button">STOP</button>
+        </div>
+      </div>
 
-        <label class="field-label" for="masterVolume">Niveau de sortie</label>
-        <div class="slider-with-value">
-          <input id="masterVolume" class="range" type="range" min="0" max="100" step="1" value="25" />
+      <div class="richness richness-sub" aria-label="Richesse des subharmoniques">
+        <div class="vertical-slider vertical-slider-down">
+          <span class="richness-zero">0</span>
+          <input id="subRichness" type="range" min="0" max="100" step="1" value="0" orient="vertical" aria-label="Richesse subharmoniques" />
+          <span class="richness-limit">+</span>
+        </div>
+        <div class="richness-copy">
+          <span class="richness-title">SUB</span>
+          <strong><span id="subRichnessValue">0</span>%</strong>
+          <span class="richness-subtitle">harmoniques</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="control-strip card">
+      <label class="fundamental-switch">
+        <input id="fundamentalEnabled" type="checkbox" checked />
+        <span class="switch-ui"></span>
+        <span><strong>Fondamentale</strong><small id="fundamentalState">active</small></span>
+      </label>
+
+      <div class="fine-control">
+        <div class="control-label-row">
+          <label for="centsSlider">Réglage fin NaturTune</label>
+          <output id="centsOutput">0 cent</output>
+        </div>
+        <input id="centsSlider" class="range" type="range" min="-100" max="100" step="1" value="0" />
+        <div class="range-scale"><span>−100</span><span>0</span><span>+100</span></div>
+      </div>
+
+      <div class="volume-control">
+        <div class="control-label-row">
+          <label for="masterVolume">Volume</label>
           <output id="masterVolumeValue">25 %</output>
         </div>
-
-        <label class="toggle-row">
-          <input id="autoNormalize" type="checkbox" checked />
-          <span>Normaliser automatiquement le mélange harmonique</span>
-        </label>
-
-        <div class="info-box">
-          <strong>Sortie numérique</strong>
-          <p id="nyquistInfo">Le moteur demandera 96 kHz si le navigateur l’accepte. La limite réelle dépendra ensuite du sample rate obtenu et du matériel.</p>
-        </div>
-      </section>
+        <input id="masterVolume" class="range" type="range" min="0" max="100" step="1" value="25" />
+      </div>
     </section>
 
-    <section class="card">
-      <div class="section-heading-row">
+    <section class="presets card">
+      <div class="section-title-row">
         <div>
-          <h2>Fondamentale, sur-harmoniques et sub-harmoniques</h2>
-          <p>Chaque composante peut être dosée séparément. Les fréquences suivent automatiquement la fondamentale et le réglage en cents.</p>
+          <p class="eyebrow">Accès rapide</p>
+          <h2>Fréquences test</h2>
         </div>
-        <div class="action-row">
-          <button id="addOvertone" class="secondary-button" type="button">+ Sur-harmonique</button>
-          <button id="addSubharmonic" class="secondary-button" type="button">+ Sub-harmonique</button>
-          <button id="resetPartials" class="ghost-button" type="button">Réinitialiser</button>
-        </div>
+        <div class="effective-readout"><span>Signal</span><strong><span id="effectiveFrequency">440.000</span> Hz</strong></div>
       </div>
-
-      <div class="partials-table-wrap">
-        <table class="partials-table">
-          <thead>
-            <tr>
-              <th>Actif</th>
-              <th>Composante</th>
-              <th>Rapport</th>
-              <th>Fréquence</th>
-              <th>Niveau</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="partialsBody"></tbody>
-        </table>
+      <div class="preset-row" aria-label="Fréquences prédéfinies">
+        <button class="chip" data-frequency="20">20</button>
+        <button class="chip" data-frequency="55">55</button>
+        <button class="chip" data-frequency="110">110</button>
+        <button class="chip" data-frequency="220">220</button>
+        <button class="chip" data-frequency="440">440</button>
+        <button class="chip" data-frequency="880">880</button>
+        <button class="chip" data-frequency="1000">1 k</button>
+        <button class="chip" data-frequency="10000">10 k</button>
+        <button class="chip" data-frequency="20000">20 k</button>
+        <button class="chip" data-frequency="25000">25 k</button>
       </div>
-      <p id="normalizationInfo" class="small-note">Normalisation : 100 %</p>
     </section>
 
-    <section class="grid-2">
-      <section class="card">
-        <h2>Contrôle de précision</h2>
-        <dl class="diagnostics">
-          <div><dt>Demandée</dt><dd><span id="requestedFrequency">440.000</span> Hz</dd></div>
-          <div><dt>Après correction cents</dt><dd><span id="detunedFrequency">440.000</span> Hz</dd></div>
-          <div><dt>Sample rate AudioContext</dt><dd><span id="sampleRateValue">—</span></dd></div>
-          <div><dt>Nyquist</dt><dd><span id="nyquistValue">—</span></dd></div>
-        </dl>
-      </section>
-
-      <section class="card warning-card">
-        <h2>Important pour 0–25 kHz</h2>
-        <p><strong>0 Hz</strong> correspond à une composante continue (DC), pas à une note audible. Elle sera généralement bloquée par la chaîne audio.</p>
-        <p><strong>25 kHz</strong> nécessite un sample rate strictement supérieur à 50 kHz. Le module demande 96 kHz, mais le téléphone, le navigateur ou le convertisseur peuvent ensuite filtrer ou rééchantillonner.</p>
-        <p>Pour tester un accordeur, une <strong>sinusoïde</strong> reste la référence la plus propre.</p>
-      </section>
+    <section class="diagnostics-card card">
+      <div class="diag-item"><span>Sample rate</span><strong id="sampleRateValue">—</strong></div>
+      <div class="diag-item"><span>Nyquist</span><strong id="nyquistValue">—</strong></div>
+      <div class="diag-item"><span>Sur-harmoniques</span><strong id="overCount">0</strong></div>
+      <div class="diag-item"><span>Subharmoniques</span><strong id="subCount">0</strong></div>
+      <p id="nyquistWarning" class="diag-note">Le module demandera 96 kHz si le navigateur l’accepte.</p>
     </section>
   </main>
 

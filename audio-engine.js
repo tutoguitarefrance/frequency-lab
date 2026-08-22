@@ -6,6 +6,7 @@
       this.requestedSampleRate = options.requestedSampleRate || 96000;
       this.context = null;
       this.masterGain = null;
+      this.analyser = null;
       this.nodes = new Map();
       this.isPlaying = false;
       this.baseFrequency = 440;
@@ -29,7 +30,13 @@
 
         this.masterGain = this.context.createGain();
         this.masterGain.gain.value = 0;
-        this.masterGain.connect(this.context.destination);
+
+        this.analyser = this.context.createAnalyser();
+        this.analyser.fftSize = 2048;
+        this.analyser.smoothingTimeConstant = 0.15;
+
+        this.masterGain.connect(this.analyser);
+        this.analyser.connect(this.context.destination);
       }
 
       if (this.context.state === 'suspended') await this.context.resume();
@@ -42,6 +49,10 @@
 
     getNyquist() {
       return this.context ? this.context.sampleRate / 2 : null;
+    }
+
+    getAnalyser() {
+      return this.analyser;
     }
 
     getDetunedFundamental() {
@@ -64,14 +75,12 @@
       if (!this.context) return f;
       const nyquist = this.getNyquist();
       if (!nyquist || f <= 0) return Math.max(0, f);
-      // Keep the oscillator below Nyquist. Components above it are muted rather than aliased.
       return f < nyquist ? f : null;
     }
 
     normalizationFactor() {
       const enabled = this.partials.filter(p => p.enabled && p.level > 0);
-      if (!enabled.length) return 1;
-      if (!this.autoNormalize) return 1;
+      if (!enabled.length || !this.autoNormalize) return 1;
       const sum = enabled.reduce((acc, p) => acc + p.level, 0);
       return sum > 1 ? 1 / sum : 1;
     }
@@ -128,6 +137,7 @@
         wantedIds.add(partial.id);
 
         let node = this.nodes.get(partial.id);
+        const desiredWaveform = partial.waveform || this.waveform;
         if (!node || forceCreate) {
           if (node) {
             try { node.osc.stop(); } catch (_) {}
@@ -136,7 +146,7 @@
           }
           const osc = this.context.createOscillator();
           const gain = this.context.createGain();
-          osc.type = this.waveform;
+          osc.type = desiredWaveform;
           osc.frequency.setValueAtTime(freq, now);
           gain.gain.setValueAtTime(partial.level * factor, now);
           osc.connect(gain);
@@ -145,7 +155,7 @@
           node = { osc, gain };
           this.nodes.set(partial.id, node);
         } else {
-          node.osc.type = this.waveform;
+          node.osc.type = desiredWaveform;
           node.osc.frequency.setTargetAtTime(freq, now, 0.006);
           node.gain.gain.setTargetAtTime(partial.level * factor, now, 0.006);
         }
