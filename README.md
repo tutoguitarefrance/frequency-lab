@@ -1,4 +1,4 @@
-# Oscillostudio — v8.2
+# Oscillostudio — v8.3.3
 
 
 ## v8.2 — phase dans le cadran Forme d’onde
@@ -96,3 +96,9 @@ Puis **Settings → Pages → Deploy from a branch → main → /(root)**.
 - Le bouton n’affiche que le symbole **Φ** incliné.
 - État normal : cyan ; phase inversée à 180° : orange.
 - Le bouton reste indépendant du geste de réglage de fréquence.
+
+
+## v8.3
+- Correction du bouton Φ caché : couche z-index dédiée au premier plan.
+- Φ reste exclusivement dans le cercle intérieur du cadran Forme d’onde.
+- Position bas-droite, fond discret mais opaque pour rester lisible pendant le morphing.
